@@ -1,26 +1,20 @@
-# CHARTFLIP
+# Chartflip
 
-[한국어](README.md)
+[한국어](README.md) · **[Play now](https://simpleusername96.github.io/chartflip/)**
 
-![Chartflip gameplay](media/preview.gif)
+[![Chartflip gameplay](media/preview.gif)](media/gameplay.mp4)
 
-An ant office worker rides an office chair home, sliding across stock charts.
+A side-scrolling time-trial game on stock charts. Get an ant office worker home as fast as you can, riding an office chair.
 
-**Flip** at the bottom and the climb ahead becomes a slide. Grab coins, spend them on **boost**, and chase the gold time. Double Bottom, Dead Cat Bounce, Short Squeeze, Bubble… all 15 courses are fictional charts made for the game.
+Created with GPT and Claude, with planning and direction by a human.
 
-## Play
+Press Space to flip the chart upside down. Flip at a valley to turn the uphill ahead into a downhill. Collect coins to fuel your boost, then hold X to use it. Tap for a short burst or hold to build a stronger boost. Keep holding through jumps to accelerate along your flight path.
 
-**[▶ Play in your browser](https://simpleusername96.github.io/chartflip/)**
-
-Or download the repository and open `index.html`. No install, no internet connection.
-
-| | Keyboard | Touch |
+| Action | Keyboard | Touch |
 |---|---|---|
 | Flip | Space | Tap the screen |
 | Boost | Hold X | Hold the bottom-right button |
 
-Gameplay videos (with sound): [Korean](media/gameplay-ko.mp4) · [English](media/gameplay-en.mp4)
+Create maps by adjusting difficulty, length, hills and coin placement, then set your medal targets. Save your maps or exchange them as files.
 
----
-
-[MIT License](LICENSE) · Made with help from GPT and Claude.
+[MIT License](LICENSE)

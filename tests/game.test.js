@@ -144,7 +144,7 @@ test('fun gate: skill decides the medal on every course', () => {
       assert.ok(time > bronze, `${course.id}: '${name}' must not earn a medal (${time.toFixed(1)}s vs bronze ${bronze}s)`);
     }
     const onTime = play(course, policies.onTime).time;
-    assert.ok(onTime <= silver, `${course.id}: flipping on every low and boosting on the ground earns at least silver`);
+    assert.ok(onTime <= silver, `${course.id}: flipping on every low and using boost earns at least silver`);
     const reactive = play(course, policies.reactive).time;
     assert.ok(reactive > onTime, `${course.id}: reading the chart beats reacting to the climb`);
     const skilled = distribution(course, PROFILES.skilled);
@@ -156,23 +156,14 @@ test('fun gate: skill decides the medal on every course', () => {
   }
 });
 
-test('fun gate: where you spend the cash matters, and boosting matters', () => {
+test('fun gate: boosting remains useful on every course', () => {
   const median = times => times.slice().sort((a, b) => a - b)[times.length >> 1];
-  let gained = 0;
   for (const course of courses) {
-    const runs = make => {
-      const times = [];
-      for (let seed = 1; seed <= 40; seed++) times.push(play(course, human(PROFILES.skilled, seed * 7919), { boost: make(seed * 7919) }).time);
-      return median(times);
-    };
-    const smart = runs(seed => booster({ sigma: 0.3 }, seed));
-    const always = runs(() => boostPolicies.always);
-    const none = runs(() => boostPolicies.none);
-    assert.ok(smart <= always + 0.15, `${course.id}: boosting on the ground is never worse than holding boost all the time (${smart.toFixed(2)} vs ${always.toFixed(2)})`);
-    assert.ok(none >= smart + 1, `${course.id}: never boosting costs time (${none.toFixed(2)} vs ${smart.toFixed(2)})`);
-    gained += always - smart;
+    const times = boost => Array.from({ length: 40 }, (_, i) => play(course, human(PROFILES.skilled, (i + 1) * 7919), { boost: boost((i + 1) * 7919) }).time);
+    const boosted = median(times(seed => booster({ sigma: 0.3 }, seed)));
+    const none = median(times(() => boostPolicies.none));
+    assert.ok(none >= boosted + 1, course.id + ': boosting saves at least a second (' + none.toFixed(2) + ' vs ' + boosted.toFixed(2) + ')');
   }
-  assert.ok(gained >= 5, `spending cash on the ground saves ${gained.toFixed(2)} s over holding boost everywhere`);
 });
 
 test('courses: fifteen, and they get longer and harder in order', () => {
@@ -228,11 +219,11 @@ test('coins: deterministic placement along every leg; the score is the riding ti
 });
 
 test('coins fill the cash gauge up to its cap; the rest is lost', () => {
-  const coins = Array.from({ length: 40 }, (_, index) => ({ type: 'coin', x: 900 + index * 60, lift: 20 }));
+  const coins = Array.from({ length: 80 }, (_, index) => ({ type: 'coin', x: 900 + index * 30, lift: 20 }));
   const { run, events } = ride(lab(coins), { until: candidate => candidate.x > 3500 });
-  assert.equal(run.stats.coins, 40);
+  assert.equal(run.stats.coins, 80);
   assert.equal(run.cash, E.RULES.cashMax, 'the gauge stops at its cap');
-  assert.equal(run.stats.overflow, 40 - E.RULES.cashMax / E.RULES.coinCash);
+  assert.equal(run.stats.overflow, 80 - E.RULES.cashMax / E.RULES.coinCash);
   assert.ok(events.some(event => event.kind === 'coin' && event.full), 'a coin into a full gauge is marked');
 });
 
@@ -241,7 +232,7 @@ test('boost: held BOOST burns cash for thrust; releasing stops it; no cash, no b
   const plain = ride(course, { until: run => run.tick === 240 }).run;
   const boosted = ride(course, { cash: 10, boostWhen: () => true, until: run => run.tick === 240 }).run;
   assert.ok(boosted.x > plain.x + 150, `boosting carries the rider further (${Math.round(boosted.x - plain.x)})`);
-  assert.equal(boosted.cash, 0, 'ten cash lasts one second at the burn rate');
+  assert.ok(boosted.cash < 1e-8, 'ten cash lasts two seconds at the burn rate');
   assert.ok(Math.abs(boosted.stats.boostTime - 10 / E.RULES.burnRate) < 0.02);
 
   const half = ride(course, { cash: 10, boostWhen: run => run.tick < 60, until: run => run.tick === 240 }).run;
@@ -253,15 +244,85 @@ test('boost: held BOOST burns cash for thrust; releasing stops it; no cash, no b
   assert.equal(broke.stats.boostTime, 0);
 });
 
-test('boost: it drives the wheels, so it pushes only on the ground but burns in the air too', () => {
-  const course = lab([]);
-  const air = ride(course, { cash: 30, until: run => run.tick === 60 }).run;
-  air.grounded = false;
-  air.vy = 600;
-  const vx = air.vx;
-  E.step(air, { boost: true });
-  assert.ok(air.boosting && air.cash < 30, 'holding in the air burns cash');
-  assert.ok(air.vx <= vx + 1e-9, 'but gives no thrust in the air');
+test('boost: sustained use builds power; release and empty fuel reset it', () => {
+  const course = lab([], [[0, 0], [30000, 0]]);
+  const held = E.createRun(course); E.start(held); held.cash = 30;
+  E.step(held, { boost: true });
+  const initial = held.boostCharge;
+  for (let i = 1; i < 480; i++) E.step(held, { boost: true });
+  assert.ok(initial > 0 && initial < 0.02);
+  assert.ok(Math.abs(held.boostCharge - 1) < 1e-12, 'four seconds reaches peak power');
+  const tapped = E.createRun(course); E.start(tapped); tapped.cash = 30;
+  for (let i = 0; i < 640; i++) E.step(tapped, { boost: i % 80 < 60 });
+  assert.ok(held.vx > tapped.vx + 100, 'continuous thrust builds more speed than short bursts with the same fuel');
+  assert.ok(Math.abs(held.cash - tapped.cash) < 1e-8);
+  E.step(held, { boost: false });
+  assert.equal(held.boostCharge, 0);
+  E.step(held, { boost: true });
+  assert.equal(held.boostCharge, initial);
+  held.cash = 0;
+  E.step(held, { boost: true });
+  assert.equal(held.boostCharge, 0);
+  held.cash = 1;
+  E.step(held, { boost: true });
+  assert.equal(held.boostCharge, initial, 'holding with no fuel cannot precharge the next coin');
+});
+
+test('boost: a larger coin reserve funds a longer, faster sustained burst', () => {
+  const course = lab([], [[0, 0], [100000, 0]]);
+  const burst = cash => ride(course, { cash, boostWhen: () => true, until: run => run.cash < 1e-8 }).run;
+  const small = burst(5), medium = burst(15), full = burst(E.RULES.cashMax);
+  assert.ok(Math.abs(small.stats.boostTime - 1) < 0.02, 'five coins buy a second');
+  assert.ok(Math.abs(full.stats.boostTime - 12) < 0.02, 'a full reserve buys twelve seconds');
+  assert.ok(medium.stats.maxSpeed > small.stats.maxSpeed * 1.5, 'saving coins makes a substantial speed difference');
+  assert.ok(full.stats.maxSpeed > medium.stats.maxSpeed + 250, 'longer holding continues to raise reachable speed');
+  assert.ok(full.stats.maxSpeed > E.RULES.maxSpeed * 1.35, 'charged boost remains clearly faster than ordinary riding');
+  assert.ok(full.stats.maxSpeed <= E.RULES.maxSpeed * 1.6, 'comfort tuning limits the speed gap');
+  assert.ok(full.stats.maxSpeed <= E.RULES.boostPeakMax);
+});
+
+test('boost: release and empty fuel coast down without a one-tick speed cut', () => {
+  const course = lab([], [[0, 0], [100000, 0]]);
+  for (const empty of [false, true]) {
+    const run = ride(course, { cash: 60, boostWhen: () => true, until: run => run.tick === 720 }).run;
+    const before = run.speed;
+    assert.ok(before > E.RULES.maxSpeed + 500);
+    if (empty) run.cash = 0;
+    E.step(run, { boost: empty });
+    assert.ok(run.speed < before && run.speed > before - 50, 'releasing removes thrust without snapping to the normal cap');
+    const fuel = run.cash;
+    for (let i = 0; i < 240; i++) E.step(run, {});
+    assert.ok(run.speed <= E.RULES.maxSpeed, 'coasting returns to the ordinary range');
+    assert.equal(run.cash, fuel, 'coasting spends no more coins');
+  }
+});
+
+test('air boost: follows travel with limited pitch, preserves charge and respects the speed cap', () => {
+  const course = lab([], [[0, 0], [100000, 0]]);
+  for (const vertical of [1200, 0, -1200]) {
+    const setup = () => {
+      const run = ride(course, { cash: 60, boostWhen: () => true, until: run => run.tick === 300 }).run;
+      run.grounded = false; run.y += 10000; run.prevY = run.y; run.vx = 900; run.vy = vertical;
+      return run;
+    };
+    const boosted = setup(), plain = setup(), charge = boosted.boostCharge, fuel = boosted.cash;
+    E.step(boosted, { boost: true }); E.step(plain, {});
+    const dx = boosted.vx - plain.vx, dy = boosted.vy - plain.vy;
+    assert.ok(dx > 0, 'air boost advances the rider');
+    assert.ok(Math.abs(dy) <= dx * Math.tan(E.RULES.airBoostAngle) + 1e-8, 'vertical thrust stays within the 20 degree cone');
+    assert.ok(vertical === 0 ? Math.abs(dy) < 1e-8 : dy * vertical > 0, 'thrust follows ascent or descent');
+    assert.ok(boosted.boostCharge > charge, 'continuous holding retains and builds charge after takeoff');
+    assert.ok(boosted.cash < fuel && boosted.stats.airBoostTime > 0);
+    for (let i = 0; i < 120; i++) { E.step(boosted, { boost: true }); E.step(plain, {}); }
+    assert.ok(boosted.x > plain.x + 100, 'air boost has an observable forward benefit');
+    assert.ok(Math.hypot(boosted.vx, boosted.vy) <= E.RULES.boostPeakMax + 1e-6, 'diving cannot bypass the speed ceiling');
+    assert.ok(boosted.vy < vertical, 'limited upward thrust cannot sustain a climb against gravity');
+    E.step(boosted, {}); assert.equal(boosted.boostCharge, 0, 'release still resets the ramp');
+  }
+  const run = E.createRun(course); E.start(run); run.grounded = false; run.y += 10000; run.vx = 0; run.vy = 0;
+  E.step(run, { boost: true }); assert.equal(run.stats.airBoostTime, 0, 'an empty gauge gives no air thrust');
+  run.cash = 1; E.step(run, { boost: true });
+  assert.ok(Number.isFinite(run.x + run.y) && run.vx > 0, 'near-zero speed has a stable forward direction');
 });
 
 test('deterministic: boost presses and releases replay exactly', () => {

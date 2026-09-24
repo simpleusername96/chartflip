@@ -35,120 +35,121 @@
     return values;
   }
 
-  // Id, names, captions, turning levels, time scale (world units per day).
+  // Stable ID, captions, turning levels, time scale (world units per day).
+  // Keep IDs unchanged so existing records and ghosts remain valid.
   const tracks = [
-    ['double-bottom', '쌍바닥', 'Double Bottom', '두 번 찍으면 바닥이다.', 'Hit the floor twice, then fly.',
+    ['double-bottom', '두 번 찍으면 바닥이다.', 'Hit the floor twice, then fly.',
       '760 140 560 160 900 470 800', 40],
-    ['dead-cat', '데드캣 바운스', 'Dead Cat Bounce', '반등인 줄 알았지?', 'Thought it was a rebound?',
+    ['dead-cat', '반등인 줄 알았지?', 'Thought it was a rebound?',
       '860 700 900 250:6 440 120:6 300 90:6', 66],
-    ['cup-handle', '컵앤핸들', 'Cup and Handle', '커피 한 잔 하고 돌파.', 'A coffee break, then a breakout.',
+    ['cup-handle', '커피 한 잔 하고 돌파.', 'A coffee break, then a breakout.',
       '880 560 640 250 330 210 700 560 980', 60],
-    ['staircase', '계단식 상승', 'Staircase', '두 칸 오르고 한 칸 쉬고.', 'Two steps up, one step back.',
+    ['staircase', '두 칸 오르고 한 칸 쉬고.', 'Two steps up, one step back.',
       '60 380 290 540 470 700 560 860 780 990 620', 66],
-    ['head-shoulders', '헤드앤숄더', 'Head & Shoulders', '머리 찍고 어깨에서 내린다.', 'Over the head, off at the shoulder.',
+    ['head-shoulders', '머리 찍고 어깨에서 내린다.', 'Over the head, off at the shoulder.',
       '150 560 380 920 370 600 360 430 80:6 240', 57],
-    ['range-bound', '박스권', 'Range Bound', '위도 막히고 아래도 막혔다.', 'Capped above, floored below.',
+    ['range-bound', '위도 막히고 아래도 막혔다.', 'Capped above, floored below.',
       '500 700 320 680 300 720 340 660 280 700 330 690 520', 57],
-    ['v-recovery', 'V자 반등', 'V Recovery', '떨어진 만큼 빠르게 돌아온다.', 'Down fast, back faster.',
+    ['v-recovery', '떨어진 만큼 빠르게 돌아온다.', 'Down fast, back faster.',
       '900 760 820 640 700 480 540 90:6 420:8 360 640 580 860 800', 62],
-    ['short-squeeze', '숏스퀴즈', 'Short Squeeze', '조용하다 싶더니 폭발.', 'Quiet, quiet… then boom.',
+    ['short-squeeze', '조용하다 싶더니 폭발.', 'Quiet, quiet… then boom.',
       '260 340:12 220:12 350:12 210:12 330:12 180:12 1000:12 360:7 640 200:7 380', 40],
-    ['averaging-down', '물타기', 'Averaging Down', '평단도 내려가고 차트도 내려간다.', 'The average drops. So does the chart.',
-      '950 700 820 560 700 430 580 330 460 240 380 160 300 60 200 140', 61],
-    ['circuit-breaker', '서킷브레이커', 'Circuit Breaker', '잠깐 멈춤. 그리고 또 낙하.', 'Trading halted. Then down again.',
+    ['averaging-down', '평단도 내려가고 차트도 내려간다.', 'The average drops. So does the chart.',
+      '950 700 820 560 700 430 580 330 800 240 380 160 300 60 200 140', 70],
+    ['circuit-breaker', '잠깐 멈춤. 그리고 또 낙하.', 'Trading halted. Then down again.',
       '600 780 560 740 520 700 150:8 220:26 160:26 600 380 560 60:8 130:26 70:26 480 420 700', 43],
-    ['bubble', '버블', 'Bubble', '오를수록 가팔라진다.', 'The higher it goes, the steeper it gets.',
+    ['bubble', '오를수록 가팔라진다.', 'The higher it goes, the steeper it gets.',
       '100 180:16 140 230:16 180 300:14 240 390:12 320 520:10 430 700:8 590 1000:7 380:7 560 250 400 120 200', 28],
-    ['to-the-moon', '가즈아', 'To the Moon', '멈추지 않는 우상향.', 'Up and to the right. Keep going.',
+    ['to-the-moon', '멈추지 않는 우상향.', 'Up and to the right. Keep going.',
       '80 260 180 340 260 420 330 500 150 560 470 640 560 720 620 780 700 860 760 900 820 960 880 1000 700', 52],
-    ['whipsaw', '휩쏘', 'Whipsaw', '올라? 내려? 둘 다.', 'Up? Down? Both.',
+    ['whipsaw', '올라? 내려? 둘 다.', 'Up? Down? Both.',
       '500 620 280 820 700 760 240 300 180 900 400 480 350 780 120 260 200 840 600 700 300 500', 29],
-    ['closing-bell', '장 마감', 'Closing Bell', '오늘의 모든 차트를 지나 퇴근.', 'Every chart of the day, then home.',
+    ['closing-bell', '오늘의 모든 차트를 지나 퇴근.', 'Every chart of the day, then home.',
       '500 620 450 640 380 470 150:6 330 200 700 560 820 640 1000:10 300:7 480 240 520 460 560 420 480 60:6 380 300 620 540 760 680 900 820', 33]
   ];
 
   const medalTimes = {
       "practice": [
-          11.1,
-          12.5,
-          15
+          9.3,
+          10.5,
+          13
       ],
       "double-bottom": [
-          10,
+          8.3,
+          9,
+          11
+      ],
+      "dead-cat": [
+          10.2,
+          11,
+          13
+      ],
+      "cup-handle": [
+          10.4,
           11.5,
           13.5
       ],
-      "dead-cat": [
-          12.5,
-          13,
-          16
-      ],
-      "cup-handle": [
-          13.6,
-          15,
-          18
-      ],
       "staircase": [
-          13.9,
-          16,
-          20
+          11.3,
+          12.5,
+          15
       ],
       "head-shoulders": [
-          16.1,
-          17.5,
-          20
+          12.4,
+          13.5,
+          16
       ],
       "range-bound": [
-          16.4,
-          19,
-          23
+          13.5,
+          15.5,
+          18
       ],
       "v-recovery": [
-          17.8,
-          20.5,
-          25
+          15.7,
+          17,
+          20
       ],
       "short-squeeze": [
-          20,
-          22.5,
-          27
+          17.4,
+          19,
+          22
       ],
       "averaging-down": [
-          21,
-          24,
-          30
+          17.7,
+          19.5,
+          23
       ],
       "circuit-breaker": [
-          22.9,
-          27,
-          33
+          19.7,
+          22.5,
+          26
       ],
       "bubble": [
-          24.3,
-          28,
-          37
+          22,
+          25,
+          31
       ],
       "to-the-moon": [
+          23.4,
           26.5,
-          31,
-          41
+          32
       ],
       "whipsaw": [
-          29,
-          34,
-          42
+          26,
+          28.5,
+          33
       ],
       "closing-bell": [
-          31.7,
-          37,
-          55
+          27.6,
+          33,
+          42
       ]
   };
 
   CF.courses = [{
     id: 'practice',
     kind: 'authored',
-    name: { ko: '모의투자', en: 'Paper Trading' },
+    name: { ko: 'Tutorial', en: 'Tutorial' },
     caption: { ko: '바닥에서 뒤집으면 오르막도 내리막.', en: 'Flip at the bottom and every climb becomes a slide.' },
     guide: true,
     medals: medalTimes.practice,
@@ -157,12 +158,12 @@
       { x: 1000, text: { ko: '바닥에서 탭!', en: 'Tap at the bottom!' } },
       { x: 2450, text: { ko: '바닥마다 뒤집기', en: 'Flip at every bottom' } },
       { x: 4150, text: { ko: '코인 = 부스트 연료', en: 'Coins fuel the boost' } },
-      { x: 5950, text: { ko: '땅에서 꾹! 부스트', en: 'Hold boost on the ground!' } }
+      { x: 5950, text: { ko: '공중에서도 꾹!', en: 'Boost through the jump!' } }
     ]
-  }, ...tracks.map(([id, ko, en, koCaption, enCaption, pattern, perDay], index) => ({
+  }, ...tracks.map(([id, koCaption, enCaption, pattern, perDay], index) => ({
     id,
     kind: 'chart',
-    name: { ko, en },
+    name: { ko: `Stage ${index + 1}`, en: `Stage ${index + 1}` },
     caption: { ko: koCaption, en: enCaption },
     values: chart(pattern, index + 1),
     swing: 0.04,

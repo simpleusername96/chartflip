@@ -35,7 +35,7 @@ async function serve(context) {
 
 /**
  * In-page pilot: presses Space when the rider crosses the next bottom of the current orientation,
- * and holds X (boost) on the ground while there is cash.
+ * and holds X (boost) while there is cash, including in flight.
  */
 function installPilot() {
   const CF = window.Chartflip;
@@ -45,7 +45,7 @@ function installPilot() {
   function tick() {
     const s = CF.app.snapshot();
     if (s && s.screen === 'running') {
-      const course = courses[s.course] || (courses[s.course] = CF.terrain.buildCourse(CF.courses.find(c => c.id === s.course)));
+      const course = courses[s.course] || (courses[s.course] = CF.terrain.buildCourse(CF.courses.find(c => c.id === s.course) || CF.maps.library(localStorage).maps.find(c => c.id === s.course)));
       if (!target || target.sign !== s.sign || target.course !== s.course || target.x < s.x - 20000) {
         const low = course.extremes.find(point => point.x >= s.x - 1 && point.kind === -s.sign);
         target = low ? { x: low.x, sign: s.sign, course: s.course } : null;
@@ -54,8 +54,8 @@ function installPilot() {
         document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true }));
         target = null;
       }
-      // Hold boost on the ground while there is cash; let go in the air.
-      const want = s.grounded && s.cash > 0;
+      // Hold through jumps so the real UI exercises airborne propulsion.
+      const want = s.cash > 0;
       if (want !== held) {
         held = want;
         document.dispatchEvent(new KeyboardEvent(want ? 'keydown' : 'keyup', { code: 'KeyX', bubbles: true }));
@@ -117,6 +117,11 @@ async function main() {
 
       await page.evaluate(installPilot);
       await page.click('.course[data-index="0"]');
+      await page.reload();
+      await page.waitForFunction(() => window.Chartflip?.app);
+      assert.equal(await page.evaluate(() => Chartflip.app.snapshot().screen), 'ready', 'refresh keeps the selected stage');
+      assert.equal(await page.evaluate(() => Chartflip.app.snapshot().course), 'practice');
+      await page.evaluate(installPilot);
       // Ready screen: one compact card (course, start, two controls) and the empty item slot.
       const ready = await page.evaluate(() => {
         const prompt = document.getElementById('prompt').getBoundingClientRect();
@@ -151,6 +156,7 @@ async function main() {
       assert.ok(result.saved && Math.abs(result.saved.time - result.snap.score) < 1e-9, `${label}: record saved`);
       assert.ok(Math.abs(parseFloat(result.shown) - result.snap.score) < 0.006, `${label}: result shows the net time`);
       assert.ok(result.snap.boostTime > 0.5, `${label}: the pilot boosted (${result.snap.boostTime.toFixed(2)} s)`);
+      assert.ok(result.snap.airBoostTime > 0, 'the pilot used boost during a jump');
       assert.equal(result.recap, 3, `${label}: the result shows three numbers`);
       assert.ok(result.panel >= 0, `${label}: the result panel starts on screen`);
       await shot(page, `${label}-result`);
@@ -178,7 +184,9 @@ async function main() {
   console.log('browser smoke: ok (desktop, phone, landscape)');
 }
 
-main().catch(error => {
+module.exports = { loadPlaywright, serve, installPilot, shot, noOverflow, ORIGIN };
+
+if (require.main === module) main().catch(error => {
   console.error(error);
   process.exitCode = 1;
 });

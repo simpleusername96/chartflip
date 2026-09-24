@@ -20,13 +20,13 @@
     pauseButton: $('pauseButton'), boostButton: $('boostButton'), cashCount: $('cashCount'), boostName: $('boostName'),
     prompt: $('prompt'), promptCourse: $('promptCourse'), promptTitle: $('promptTitle'), flipKey: $('flipKey'), itemKey: $('itemKey'),
     flipLabel: $('flipLabel'), itemLabel: $('itemLabel'), hint: $('hint'), menu: $('menu'), tagline: $('tagline'), tally: $('tally'),
-    courseList: $('courseList'), helpButton: $('helpButton'), guideToggle: $('guideToggle'), soundToggle: $('soundToggle'),
+    courseList: $('courseList'), helpButton: $('helpButton'), soundToggle: $('soundToggle'),
     langToggle: $('langToggle'), pauseScreen: $('pauseScreen'), pauseTitle: $('pauseTitle'), resumeButton: $('resumeButton'),
     restartButton: $('restartButton'), menuButton: $('menuButton'), pauseSound: $('pauseSound'), resultScreen: $('resultScreen'),
     resultMedal: $('resultMedal'), resultVerdict: $('resultVerdict'), resultTime: $('resultTime'), resultCompare: $('resultCompare'),
     resultTarget: $('resultTarget'), resultRecap: $('resultRecap'), retryButton: $('retryButton'), nextButton: $('nextButton'),
     coursesButton: $('coursesButton'), copyButton: $('copyButton'), helpScreen: $('helpScreen'), helpTitle: $('helpTitle'),
-    helpSteps: $('helpSteps'), helpKeys: $('helpKeys'), helpClose: $('helpClose'), dataNote: $('dataNote'),
+    helpSteps: $('helpSteps'), helpKeys: $('helpKeys'), helpClose: $('helpClose'),
     toast: $('toast')
   };
 
@@ -34,19 +34,19 @@
   function loadSaved() {
     try {
       const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (data && typeof data === 'object') return { settings: data.settings || {}, records: data.records || {} };
+      const object = value => value && typeof value === 'object' && !Array.isArray(value);
+      if (object(data)) return { settings: object(data.settings) ? data.settings : {}, records: object(data.records) ? data.records : {} };
     } catch (error) { /* private mode or corrupt data: play without saving */ }
     return { settings: {}, records: {} };
   }
   const saved = loadSaved();
   function persist() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); } catch (error) { /* ignore */ }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); } catch (error) { toast(t('storageFailed')); }
   }
 
   const settings = {
     lang: pickLanguage(saved.settings.lang),
-    sound: saved.settings.sound !== false,
-    guide: Boolean(saved.settings.guide)
+    sound: saved.settings.sound !== false
   };
   function saveSettings() {
     saved.settings = { ...settings };
@@ -60,7 +60,7 @@
 
   // ---------- courses and records ----------
   const built = new Map();
-  const defs = CF.courses;
+  const defs = CF.courses.slice();
   function courseAt(index) {
     const def = defs[index];
     if (!built.has(def.id)) built.set(def.id, buildCourse(def));
@@ -224,11 +224,11 @@
     return false;
   }
 
-  /** The pilot boosts on the ground whenever it has cash. */
-  const pilotBoost = run => run.grounded && run.cash > 0;
+  /** The pilot keeps boosting through jumps while fuel lasts. */
+  const pilotBoost = run => run.cash > 0;
 
   function startDemo() {
-    const course = courseAt(app.demoIndex % defs.length);
+    const course = courseAt(app.demoIndex % CF.courses.length);
     const run = E.createRun(course);
     E.start(run);
     app.demo = { run, memory: {}, accumulator: 0, input: { flip: false, boost: false } };
@@ -411,7 +411,7 @@
       item.append(hidden, value);
       ui.resultRecap.append(item);
     }
-    show(ui.nextButton, app.index < defs.length - 1);
+    show(ui.nextButton, app.index < CF.courses.length - 1);
     show(ui.hint, false);
     show(ui.boostButton, false);
     setBoost(false);
@@ -420,7 +420,7 @@
   }
 
   function next() {
-    if (app.index < defs.length - 1) openCourse(app.index + 1);
+    if (app.index < CF.courses.length - 1) openCourse(app.index + 1);
     else showMenu();
   }
 
@@ -451,13 +451,6 @@
     toast(t(settings.sound ? 'soundOn' : 'soundOff'));
   }
 
-  function toggleGuide() {
-    settings.guide = !settings.guide;
-    saveSettings();
-    applyText();
-    toast(t(settings.guide ? 'guideOn' : 'guideOff'));
-  }
-
   function toggleLanguage() {
     settings.lang = settings.lang === 'ko' ? 'en' : 'ko';
     text = TEXT[settings.lang];
@@ -468,11 +461,13 @@
   }
 
   function openHelp() {
+    ui.menu.inert = true;
     show(ui.helpScreen, true);
     ui.helpClose.focus();
   }
 
   function closeHelp() {
+    ui.menu.inert = false;
     show(ui.helpScreen, false);
     ui.helpButton.focus();
   }
@@ -484,9 +479,6 @@
     ui.tagline.textContent = t('tagline');
     ui.helpButton.setAttribute('aria-label', t('help'));
     ui.helpButton.title = t('help');
-    ui.guideToggle.setAttribute('aria-label', t('guide'));
-    ui.guideToggle.title = t('guide');
-    ui.guideToggle.setAttribute('aria-pressed', String(settings.guide));
     for (const button of [ui.soundToggle, ui.pauseSound]) {
       button.setAttribute('aria-label', t('sound'));
       button.title = t(settings.sound ? 'soundOn' : 'soundOff');
@@ -526,7 +518,6 @@
     });
     ui.helpKeys.textContent = touchFirst ? '' : t('keys');
     ui.helpClose.textContent = t('close');
-    ui.dataNote.textContent = t('dataNote');
     ui.backButton.setAttribute('aria-label', t('back'));
     ui.pauseButton.setAttribute('aria-label', t('pause'));
     ui.boostButton.setAttribute('aria-label', t('boostButton'));
@@ -561,7 +552,7 @@
 
   function renderTally() {
     const counts = [0, 0, 0];
-    defs.forEach((def, index) => {
+    CF.courses.forEach((def, index) => {
       const record = recordFor(courseAt(index));
       if (record) {
         const medal = medalFor(def, record.time);
@@ -572,17 +563,18 @@
     counts.forEach((count, index) => {
       const item = document.createElement('span');
       item.innerHTML = `<i class="dot ${MEDAL_CLASS[index]}"></i>`;
-      item.append(`${count}/${defs.length}`);
-      item.setAttribute('aria-label', `${t('medal')[index]} ${count}/${defs.length}`);
+      item.append(`${count}/${CF.courses.length}`);
+      item.setAttribute('aria-label', `${t('medal')[index]} ${count}/${CF.courses.length}`);
       ui.tally.append(item);
     });
     show(ui.tally, counts.some(Boolean));
   }
 
   function renderCourses() {
+    workshop.refresh();
     renderTally();
     ui.courseList.innerHTML = '';
-    defs.forEach((def, index) => {
+    CF.courses.forEach((def, index) => {
       const record = recordFor(courseAt(index));
       const medal = record ? medalFor(def, record.time) : 3;
       const card = document.createElement('button');
@@ -591,7 +583,7 @@
       card.dataset.index = String(index);
       const title = document.createElement('span');
       title.className = 'course-title';
-      const number = document.createElement('i');
+      const number = document.createElement('span');
       number.className = 'num';
       number.setAttribute('aria-hidden', 'true');
       number.textContent = def.kind === 'authored' ? '★' : String(index);
@@ -729,8 +721,7 @@
     if (shown.boost !== state) {
       shown.boost = state;
       ui.boostButton.style.setProperty('--fill', (run.cash / rules.cashMax).toFixed(3));
-      ui.boostButton.classList.toggle('on', run.boosting && run.grounded);
-      ui.boostButton.classList.toggle('spin', run.boosting && !run.grounded);
+      ui.boostButton.classList.toggle('on', run.boosting);
       ui.boostButton.classList.toggle('full', run.cash >= rules.cashMax - 1e-9);
       ui.boostButton.classList.toggle('empty', run.cash <= 0);
       ui.cashCount.textContent = String(Math.ceil(run.cash - 1e-9));
@@ -809,12 +800,12 @@
       else app.pausedFrame = true;
       renderer.draw(run, {
         lang: settings.lang,
-        guide: app.screen !== 'menu' && (settings.guide || run.course.guide),
+        guide: app.screen !== 'menu',
         ghost: app.screen === 'menu' ? null : ghostPose()
       });
     }
     if (!frozen) updateHud();
-    sound.motion(run ? Math.hypot(run.vx, run.vy) : 0, app.screen === 'running', Boolean(run && run.boosting && run.grounded));
+    sound.motion(run ? Math.hypot(run.vx, run.vy) : 0, app.screen === 'running', Boolean(run && run.boosting));
     requestAnimationFrame(frame);
   }
 
@@ -841,6 +832,12 @@
   ui.boostButton.addEventListener('contextmenu', event => event.preventDefault());
 
   document.addEventListener('keydown', event => {
+    if (!ui.helpScreen.hidden) {
+      if (event.code === 'Escape') closeHelp();
+      if (event.code === 'Tab') { event.preventDefault(); ui.helpClose.focus(); }
+      return;
+    }
+    if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable=true]')) return;
     const inRun = app.screen === 'ready' || app.screen === 'running';
     if (FLIP_KEYS.has(event.code) && inRun) {
       event.preventDefault();
@@ -881,7 +878,6 @@
   ui.copyButton.addEventListener('click', copyResult);
   ui.helpButton.addEventListener('click', openHelp);
   ui.helpClose.addEventListener('click', closeHelp);
-  ui.guideToggle.addEventListener('click', toggleGuide);
   ui.soundToggle.addEventListener('click', toggleSound);
   ui.langToggle.addEventListener('click', toggleLanguage);
 
@@ -913,9 +909,74 @@
     return texts.filter(Boolean);
   }
 
+  const workshop = CF.workshop.create({
+    getLanguage: () => settings.lang,
+    best: def => recordFor(buildCourse(def))?.time ?? null,
+    play: def => {
+      const previous = defs[CF.courses.length];
+      if (previous) { built.delete(previous.id); app.ghosts.delete(previous.id); }
+      defs[CF.courses.length] = def;
+      sound.unlock();
+      openCourse(CF.courses.length);
+    }
+  });
+  // Refresh stays in this tab's current view; unfinished races resume paused.
+  const SESSION_KEY = 'chartflip.session.v1';
+  function saveSession() {
+    const run = app.screen !== 'menu' ? app.run : null;
+    const state = {
+      screen: app.screen, help: !ui.helpScreen.hidden, workshop: workshop.snapshot(),
+      scroll: ui.menu.scrollTop,
+      race: run ? {
+        course: run.course.id, custom: run.course.def.custom ? CF.maps.documentFor(run.course.def) : null,
+        sig: signature(run.course), tick: run.status === 'finished' ? Math.min(run.tick, Math.ceil(run.finishTime / STEP) + 120) : run.tick, flips: run.flipTicks, boosts: run.boostTicks,
+        result: app.screen === 'finished' ? app.result : null, previous: app.previousBest
+      } : null
+    };
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(state)); } catch { /* storage may be unavailable */ }
+  }
+  function restoreSession() {
+    let state;
+    try { state = JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch { return; }
+    if (!state || typeof state !== 'object') return;
+    workshop.restore(state.workshop);
+    const race = state.race;
+    if (race && ['ready', 'running', 'paused', 'finished'].includes(state.screen)) {
+      try {
+        let index = defs.findIndex(def => def.id === race.course);
+        if (race.custom) {
+          const def = CF.maps.decode(JSON.stringify(race.custom));
+          index = CF.courses.length; defs[index] = def;
+        }
+        if (index < 0 || race.sig !== signature(courseAt(index))) throw Error('changed-course');
+        const ticks = race.tick;
+        const validTicks = list => Array.isArray(list) && list.length <= 72000 && list.every((n, i) => Number.isInteger(n) && n >= 0 && n <= ticks && (!i || n >= list[i - 1]));
+        if (!Number.isInteger(ticks) || ticks < 0 || ticks > 72000 || !validTicks(race.flips) || !validTicks(race.boosts)) throw Error('invalid-session');
+        openCourse(index);
+        if (state.screen !== 'ready') {
+          E.start(app.run);
+          const input = E.inputs(race.flips, race.boosts);
+          for (let tick = 0; tick < ticks; tick++) { E.step(app.run, input(tick)); app.run.events.length = 0; }
+          app.previousBest = race.previous || null;
+          renderer.reset(app.run);
+          show(ui.prompt, false);
+          app.screen = 'running';
+          if (app.run.status === 'finished' && race.result && Number.isFinite(race.result.time)) {
+            app.screen = 'finished'; app.result = race.result; app.finishTimer = 0;
+            if (race.result.best && (!recordFor(app.run.course) || E.score(app.run) < recordFor(app.run.course).time)) saved.records[app.run.course.id] = { time: E.score(app.run), raw: app.run.finishTime, flips: app.run.flipTicks.slice(), boosts: app.run.boostTicks.slice(), sig: signature(app.run.course), medal: medalFor(app.run.course.def, E.score(app.run)), at: Date.now() };
+            showResult();
+          } else pause();
+        }
+      } catch { showMenu(); }
+    }
+    if (app.screen === 'menu' && state.help) openHelp();
+    if (Number.isFinite(state.scroll)) ui.menu.scrollTop = state.scroll;
+  }
+  window.addEventListener('pagehide', saveSession);
   applyText();
   renderer.warm(gameTexts());
   showMenu();
+  restoreSession();
   requestAnimationFrame(frame);
 
   /** Read-only observation hook for automated checks. */
@@ -925,7 +986,7 @@
       return run && {
         screen: app.screen, course: run.course.id, status: run.status, x: run.x, y: run.y, sign: run.sign, grounded: run.grounded,
         speed: Math.hypot(run.vx, run.vy), tick: run.tick, time: E.elapsed(run), score: E.score(run),
-        flips: run.stats.flips, coins: run.stats.coins, cash: run.cash, boosting: run.boosting, boostTime: run.stats.boostTime,
+        boostCharge: run.boostCharge, flips: run.stats.flips, coins: run.stats.coins, cash: run.cash, boosting: run.boosting, boostTime: run.stats.boostTime, airBoostTime: run.stats.airBoostTime,
         finishTime: run.finishTime
       };
     }

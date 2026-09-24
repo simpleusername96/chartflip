@@ -62,8 +62,25 @@
 
   /** A line of coins on the middle of every leg, riding the reference line (one every ~260 units). */
   function generate(course) {
+    if (course.def.coinLayout) return course.def.coinLayout.map(([x, lift], id) => ({ type: 'coin', id, x, lift }));
     const items = [];
     if (!CF.engine) return items;
+    if (course.def.coinOptions) {
+      const { count, placement } = course.def.coinOptions;
+      const legs = legsOf(course);
+      const total = legs.reduce((sum, leg) => sum + leg.len, 0);
+      for (let i = 0; i < count; i++) {
+        let distance = (i + 0.5) / count * total;
+        let leg = legs[legs.length - 1];
+        for (const candidate of legs) { leg = candidate; if (distance <= leg.len) break; distance -= leg.len; }
+        const fraction = Math.max(0, Math.min(1, distance / leg.len));
+        const start = placement === 'early' ? 0.12 : placement === 'late' ? 0.5 : 0.2;
+        const span = placement === 'even' ? 0.6 : 0.38;
+        const x = leg.x0 + leg.len * (start + span * fraction);
+        items.push({ type: 'coin', id: i, x, lift: TYPES.coin.lift });
+      }
+      return items;
+    }
     const line = reference(course);
     for (const leg of legsOf(course)) {
       const count = Math.max(3, Math.min(8, Math.round(leg.len / 260)));

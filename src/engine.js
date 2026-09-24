@@ -10,7 +10,7 @@
   const { clamp } = CF.terrain;
 
   const RULES = Object.freeze({
-    version: 'fictional-1',
+    version: 'air-boost-5',
     dt: 1 / 120,
     gravity: 1200,
     radius: 14,
@@ -36,11 +36,18 @@
     hitRadius: 30,
     hitLift: 22,
     coinCash: 1,
-    cashMax: 30,
-    burnRate: 10,
-    // Boost drives the wheels: thrust only on the ground; held in the air it still burns cash.
-    boostThrust: 900,
-    boostMax: 2400
+    cashMax: 60,
+    burnRate: 5,
+    // Air thrust follows travel with a shallow pitch; it cannot cancel gravity.
+    boostThrust: 1100,
+    boostMax: 2400,
+    boostRampSeconds: 4,
+    boostPeakThrust: 3400,
+    boostPeakMax: 3200,
+    boostClimbResistance: 12,
+    boostCoastRate: 900,
+    airBoostFactor: 0.5,
+    airBoostAngle: Math.PI / 9
   });
 
   function surface(run, x) {
@@ -84,9 +91,12 @@
       cursor: 0,
       cash: 0,
       boosting: false,
+      boostHeldTime: 0,
+      boostCharge: 0,
+      speedLimit: rules.maxSpeed,
       stats: {
         flips: 0, perfect: 0, good: 0, clean: 0, hard: 0, maxSpeed: 0, airTime: 0, bestStreak: 0,
-        coins: 0, overflow: 0, boostTime: 0, boosts: 0
+        coins: 0, overflow: 0, boostTime: 0, airBoostTime: 0, boosts: 0
       }
     };
     run.y = heightAt(run, run.x) + rules.radius;
@@ -103,7 +113,7 @@
   }
 
   const emit = (run, event) => run.events.push(event);
-  const cap = run => (run.boosting ? run.rules.boostMax : run.rules.maxSpeed);
+  const cap = run => run.speedLimit;
   const minimum = run => (run.status === 'finished' ? 0 : run.rules.crawl);
 
   function takeoff(run, vx, vy) {
@@ -259,13 +269,22 @@
       return;
     }
     let accel = -rules.gravity * ty - rules.rolling * run.speed - rules.drag * run.speed * run.speed;
-    if (run.boosting) accel += rules.boostThrust;
+    if (run.boosting) {
+      const thrust = rules.boostThrust + (rules.boostPeakThrust - rules.boostThrust) * run.boostCharge;
+      // Steep climbs reduce wheel thrust, preserving the value of a well-timed flip.
+      accel += thrust / (1 + Math.max(0, here.slope) * rules.boostClimbResistance);
+    }
     if (run.status === 'finished') accel -= rules.finishBrake;
     const speed = clamp(run.speed + accel * dt, minimum(run), cap(run));
     run.x += speed * tx * dt;
     ground(run, surface(run, run.x), speed);
     run.crawlTime = speed <= rules.crawl + 0.5 && here.slope > 0 ? run.crawlTime + dt : 0;
     if (run.crawlTime > 0.25) run.streak = 0;
+  }
+
+  function airBoostDirection(run) {
+    const angle = clamp(Math.atan2(run.vy, Math.max(0, run.vx)), -run.rules.airBoostAngle, run.rules.airBoostAngle);
+    return { x: Math.cos(angle), y: Math.sin(angle) };
   }
 
   function airStep(run) {
@@ -278,8 +297,19 @@
     let factor = 1 - rules.airDrag * speed * dt;
     // Terminal speed in the air matches the ground cap, so jumps and long drops stay readable.
     factor = Math.min(factor, cap(run) / Math.max(1, speed));
-    const vx = run.vx * factor;
-    const vy = run.vy * factor;
+    let vx = run.vx * factor;
+    let vy = run.vy * factor;
+    if (run.boosting && run.status === 'running') {
+      const direction = airBoostDirection(run);
+      const thrust = (rules.boostThrust + (rules.boostPeakThrust - rules.boostThrust) * run.boostCharge) * rules.airBoostFactor;
+      vx += direction.x * thrust * dt;
+      vy += direction.y * thrust * dt;
+      run.stats.airBoostTime += dt;
+    }
+    // Include gravity when enforcing the existing ceiling; a dive cannot bypass it.
+    const limit = Math.min(1, cap(run) / Math.max(1, Math.hypot(vx, vy - g * dt)));
+    vx *= limit;
+    vy = (vy - g * dt) * limit + g * dt;
     const below = time => y0 + vy * time - 0.5 * g * time * time - rules.radius <= heightAt(run, x0 + vx * time);
     run.airTime += dt;
     if (!below(dt)) {
@@ -332,6 +362,11 @@
     const rules = run.rules;
     const was = run.boosting;
     run.boosting = held && run.cash > 0;
+    run.boostHeldTime = run.boosting ? Math.min(rules.boostRampSeconds, run.boostHeldTime + rules.dt) : 0;
+    const progress = run.boostHeldTime / rules.boostRampSeconds;
+    run.boostCharge = progress * progress * (3 - 2 * progress);
+    const targetLimit = run.boosting ? rules.boostMax + (rules.boostPeakMax - rules.boostMax) * run.boostCharge : rules.maxSpeed;
+    run.speedLimit = Math.max(targetLimit, run.speedLimit - rules.boostCoastRate * rules.dt);
     if (run.boosting) {
       run.cash = Math.max(0, run.cash - rules.burnRate * rules.dt);
       run.stats.boostTime += rules.dt;
@@ -347,7 +382,7 @@
     run.prevY = run.y;
     if (input && input.flip && run.status === 'running') flip(run);
     if (run.status === 'running') boost(run, Boolean(input && input.boost));
-    else run.boosting = false;
+    else { run.boosting = false; run.boostHeldTime = 0; run.boostCharge = 0; }
     const previousX = run.x;
     if (run.grounded) groundStep(run);
     else airStep(run);
@@ -405,5 +440,5 @@
     return run;
   }
 
-  CF.engine = { RULES, createRun, start, step, surface, heightAt, nextLow, elapsed, score, replay, inputs };
+  CF.engine = { RULES, createRun, start, step, surface, heightAt, airBoostDirection, nextLow, elapsed, score, replay, inputs };
 })(globalThis.Chartflip = globalThis.Chartflip || {});

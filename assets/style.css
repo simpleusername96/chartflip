@@ -259,11 +259,6 @@ svg .off { display: none; }
   background: radial-gradient(circle at 50% 38%, #ffb04a, #e2560f 72%);
 }
 .boost.on .boost-ring { background: conic-gradient(#fff3b0 calc(var(--fill) * 1turn), rgba(255, 255, 255, 0.2) 0); }
-.boost.spin {
-  transform: translateY(5px) scale(0.96);
-  box-shadow: 0 1px 0 var(--line);
-  background: radial-gradient(circle at 50% 38%, #a9b0c4, #6c738c 72%);
-}
 
 .boost-name {
   position: absolute;
@@ -908,4 +903,136 @@ svg .off { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .logo .flip, .prompt-go, .hint, .medal, .medal::before, .boost.full, .panel { animation: none; }
   .course, .boost-name, .icon, .round, .primary, .secondary, .boost { transition: none; }
+}
+
+/* Keep upright one- and two-digit course numbers optically centered. */
+.num { font-style: normal; line-height: 1; text-align: center; }
+
+/* Map workshop: the same chart cards, ink outlines and tactile buttons as the stages. */
+.workshop { width: 100%; }
+.workshop svg { flex: none; }
+.map-tabs { display: flex; justify-content: center; gap: 12px; }
+.map-tabs button { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 50px; padding: 10px 22px; border: var(--edge); border-radius: 18px; background: var(--paper); box-shadow: 0 4px 0 var(--line); font-size: 16px; font-weight: 900; transition: transform .1s, box-shadow .1s; }
+.map-tabs button[aria-pressed="true"] { background: var(--gold); transform: rotate(-2deg); }
+.map-tabs button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+.map-tabs svg, .map-icon svg, .map-play svg, .empty-map svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.editing-map .menu-inner { max-width: 960px; gap: 20px; }
+.editing-map .logo { font-size: clamp(56px, 8vw, 90px); }
+.map-editor { width: min(800px, 100%); margin: 28px auto 0; }
+.map-sheet { border: var(--edge); border-radius: 26px; background: var(--card); box-shadow: 0 7px 0 var(--line); overflow: hidden; }
+.map-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px 8px; }
+.map-name { min-width: 0; flex: 1; }
+.map-name input { display: block; width: 100%; min-width: 0; padding: 5px 0; border: 0; border-bottom: 2px dashed #1b1f4626; border-radius: 0; background: transparent; font: 900 24px/1.3 var(--font); color: var(--line); text-overflow: ellipsis; user-select: text; }
+.map-tools, .library-tools > div { display: flex; gap: 8px; }
+.map-icon { display: inline-grid; place-items: center; flex: none; width: 46px; height: 46px; padding: 0; border: var(--edge); border-radius: 50%; background: var(--card); box-shadow: 0 3px 0 var(--line); color: var(--line); cursor: pointer; transition: background .12s, transform .1s, box-shadow .1s; }
+.map-icon:active { transform: translateY(3px); box-shadow: none; }
+.map-icon.saved { background: var(--mint); }
+.map-icon.shuffle { background: var(--gold); transform: rotate(5deg); }
+.map-icon.shuffle:active { transform: rotate(5deg) translateY(3px); }
+.map-icon[aria-expanded="true"] { background: var(--gold); }
+.map-chart { position: relative; margin: 12px 20px 0; border-radius: 12px; overflow: hidden; background-image: linear-gradient(#1b1f4608 1px, transparent 1px), linear-gradient(90deg, #1b1f4608 1px, transparent 1px); background-size: 36px 36px; }
+#mapPreview { width: 100%; height: 235px; display: block; overflow: visible; transition: opacity .15s; }
+.chart-line { fill: none; stroke: var(--up); stroke-width: 3; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.chart-fill { fill: #ff4d5e12; stroke: none; }
+.chart-coins { fill: var(--gold); stroke: #a07816; stroke-width: .8; }
+.chart-start { fill: var(--line); stroke: white; stroke-width: 3; }
+.chart-flag { fill: var(--gold); stroke: var(--line); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.map-deck { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 18px 20px 22px; border-top: 2px solid #1b1f460c; }
+.medal-fields { display: flex; gap: 10px; min-width: 0; }
+.medal-chip { display: flex; align-items: center; position: relative; gap: 5px; padding: 6px 8px 6px 5px; min-width: 0; border: 2px solid var(--line); border-radius: 14px; background: var(--paper); }
+.medal-mark { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border: 2px solid var(--line); border-radius: 50%; background: var(--disc); font-size: 14px; font-weight: 950; box-shadow: inset 0 0 0 2px #ffffff80; }
+.medal-chip.gold { --disc: var(--gold); }
+.medal-chip.silver { --disc: var(--silver); }
+.medal-chip.bronze { --disc: var(--bronze); }
+.medal-chip input { width: 5ch; min-width: 0; padding: 4px 0; border: 0; border-radius: 4px; background: transparent; color: var(--line); font: 900 17px/1.2 var(--font); font-variant-numeric: tabular-nums; text-align: right; appearance: textfield; user-select: text; }
+.medal-chip input::-webkit-inner-spin-button, .medal-chip input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.time-unit { font-size: 12px; font-weight: 700; color: var(--muted); }
+.map-play { display: flex; align-items: center; justify-content: center; gap: 12px; flex: none; min-width: 176px; min-height: 58px; padding: 10px 22px; font-size: 21px; transform: rotate(-2deg); }
+.map-play svg { width: 24px; height: 24px; }
+.map-controls { display: flex; align-items: center; gap: 12px; margin: 24px 0 0; }
+.difficulty-control { display: flex; align-items: center; gap: 16px; min-height: 58px; min-width: 0; flex: 1; padding: 8px 14px 8px 20px; border: var(--edge); border-radius: 18px; background: var(--paper); box-shadow: 0 4px 0 var(--line); font-size: 15px; font-weight: 900; }
+.difficulty-track { flex: 1; min-width: 0; }
+#difficultyValue { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 10px; background: var(--line); color: white; font-size: 20px; font-weight: 900; }
+.workshop input[type="range"] { --fill: 44%; display: block; width: 100%; height: 32px; margin: 0; padding: 0; appearance: none; background: transparent; cursor: pointer; }
+.workshop input[type="range"]::-webkit-slider-runnable-track { height: 10px; border: 2px solid var(--line); border-radius: 10px; background: linear-gradient(to right, var(--gold) var(--fill), #dce1ef var(--fill)); }
+.workshop input[type="range"]::-webkit-slider-thumb { appearance: none; width: 24px; height: 24px; margin-top: -9px; border: 3px solid var(--line); border-radius: 50%; background: var(--gold); box-shadow: 0 2px 0 var(--line); }
+.workshop input[type="range"]::-moz-range-track { height: 7px; border: 2px solid var(--line); border-radius: 10px; background: #dce1ef; }
+.workshop input[type="range"]::-moz-range-progress { background: var(--gold); height: 7px; }
+.workshop input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px solid var(--line); border-radius: 50%; background: var(--gold); }
+.map-advanced { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; margin: 18px 0 0; padding: 20px; border: var(--edge); border-radius: 20px; background: var(--paper); box-shadow: 0 4px 0 var(--line); }
+.range-label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px; font-size: 13px; font-weight: 800; }
+.range-label input { grid-column: 1 / -1; }
+.range-label output { color: var(--muted); font-variant-numeric: tabular-nums; }
+.placement-control { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; font-size: 13px; font-weight: 800; }
+.placement-control select { padding: 8px 12px; border: 2px solid var(--line); border-radius: 12px; background: white; color: var(--line); font: 800 14px var(--font); }
+.workshop input:focus-visible, .workshop select:focus-visible, .import-label:focus-within { outline: 3px solid var(--down); outline-offset: 3px; }
+.map-status:not(.sr):not(:empty) { margin: 20px 0 0; padding: 10px 14px; border: 2px solid var(--line); border-radius: 12px; background: var(--paper); font-size: 13px; font-weight: 750; }
+.map-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.loading #mapPreview { opacity: .2; }
+.map-loading output { font-size: 23px; font-weight: 900; min-width: 3.5ch; font-variant-numeric: tabular-nums; }
+.map-loading .map-icon { width: 36px; height: 36px; box-shadow: 0 2px 0 var(--line); }
+.map-loading .map-icon svg { width: 16px; height: 16px; }
+.map-spinner { width: 24px; height: 24px; border: 4px solid #1b1f4626; border-top-color: var(--line); border-radius: 50%; animation: map-spin .8s linear infinite; }
+@keyframes map-spin { to { transform: rotate(360deg); } }
+.workshop button:disabled, .workshop input:disabled, .workshop select:disabled { opacity: .42; cursor: default; }
+.map-library { margin: 24px auto 0; width: min(800px, 100%); }
+.library-tools { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 20px; }
+.import-label { position: relative; overflow: hidden; }
+.import-label input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.saved-map { min-width: 0; border: var(--edge); border-radius: 22px; background: var(--card); box-shadow: var(--drop); overflow: hidden; }
+.saved-map .course { border: 0; border-radius: 0; box-shadow: none; width: 100%; padding: 14px 14px 10px; min-height: 0; gap: 10px; }
+.saved-map .course:active { box-shadow: none; }
+.saved-map .course > svg { width: 100%; height: 70px; }
+.saved-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 12px 12px; background: var(--paper); border-top: 2px solid #1b1f460c; }
+.saved-actions .map-icon { width: 36px; height: 36px; border-width: 2px; box-shadow: 0 2px 0 var(--line); }
+.saved-actions .map-icon svg { width: 17px; height: 17px; }
+.saved-actions .map-icon:last-child { margin-left: auto; }
+.empty-map { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; width: min(300px, 100%); min-height: 210px; margin: 20px auto; border: 3px dashed var(--line); border-radius: 24px; background: #fffaf0e8; font-size: 18px; font-weight: 900; }
+.empty-map svg { width: 42px; height: 42px; padding: 6px; border: var(--edge); border-radius: 50%; background: var(--gold); }
+@media (max-width: 640px) {
+  .map-tabs { gap: 8px; }
+  .map-tabs button { min-height: 46px; padding: 9px 12px; gap: 6px; border-radius: 15px; font-size: 13px; }
+  .map-tabs svg { width: 17px; height: 17px; }
+  .editing-map .logo { font-size: 56px; }
+  .editing-map .menu-inner { gap: 18px; }
+  .map-editor { margin-top: 22px; }
+  .map-sheet { border-radius: 22px; }
+  .map-sheet-head { padding: 12px 12px 6px; gap: 10px; }
+  .map-name input { font-size: 20px; }
+  .map-tools { gap: 6px; }
+  .map-tools .map-icon { width: 38px; height: 38px; border-width: 2.5px; }
+  .map-tools svg { width: 19px; height: 19px; }
+  .map-chart { margin: 8px 10px 0; background-size: 28px 28px; }
+  #mapPreview { height: 165px; }
+  .map-deck { flex-direction: column; gap: 14px; padding: 12px 12px 18px; }
+  .medal-fields { width: 100%; gap: 7px; }
+  .medal-chip { flex: 1; padding: 4px; gap: 3px; border-radius: 12px; }
+  .medal-mark { width: 24px; height: 24px; font-size: 11px; }
+  .medal-chip input { width: 100%; font-size: 15px; }
+  .time-unit { font-size: 10px; }
+  .map-play { width: 100%; min-height: 50px; font-size: 19px; transform: none; }
+  .map-controls { gap: 10px; margin-top: 20px; }
+  .difficulty-control { gap: 9px; padding: 7px 8px 7px 12px; min-height: 50px; font-size: 12px; }
+  #difficultyValue { width: 28px; height: 28px; font-size: 17px; }
+  .map-controls > .map-icon { width: 42px; height: 42px; }
+  .map-advanced { gap: 12px; padding: 16px; }
+  #savedMaps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
+  .saved-map .course { padding: 10px 8px; gap: 8px; }
+  .saved-map .course > svg { height: 50px; }
+  .saved-map .course-title { gap: 5px; padding: 0; }
+  .saved-map .course b { font-size: 14px; }
+  .saved-map .num { width: 20px; height: 20px; font-size: 11px; }
+  .saved-map .course-foot { font-size: 11px; gap: 4px; }
+  .saved-map .dot { width: 11px; height: 11px; }
+  .saved-actions { padding: 8px 5px 10px; gap: 5px; }
+  .saved-actions .map-icon { width: 36px; height: 36px; }
+}
+@media (max-width: 360px) {
+  .map-tabs button { padding: 9px 10px; }
+  .map-tabs svg { display: none; }
+  #savedMaps { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-spinner { animation: none; }
+  #mapPreview, .map-tabs button, .map-icon { transition: none; }
 }

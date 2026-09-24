@@ -288,6 +288,11 @@
       this.fold = null;
       this.flash = null;
       this.shake = 0;
+      this.boostShake = 0;
+      this.boostLevel = 0;
+      this.boostPulse = 0;
+      this.speedLineTravel = 0;
+      this.speedLineSpeed = 0;
       this.pose = { angle: 0, squash: 1, wobble: 0, roll: 0 };
       this.rider = { x: 0, y: 0 };
       this.time = 0;
@@ -332,22 +337,42 @@
       this.fold = null;
       this.flash = null;
       this.shake = 0;
+      this.boostShake = 0;
+      this.boostLevel = 0;
+      this.boostPulse = 0;
+      this.speedLineTravel = 0;
+      this.speedLineSpeed = 0;
       this.pose = { angle: 0, squash: 1, wobble: 0, roll: 0 };
       this.rider.x = run.x;
       this.rider.y = run.y;
       const view = this.view(run);
       this.camera.zoom = view.zoom;
+      this.zoomTarget = view.zoom;
+      this.zoomHold = 0;
       this.camera.anchor = view.anchor;
       this.camera.x = run.x;
-      this.camera.y = run.y + view.lift;
+      this.camera.y = view.focus + view.lift;
     }
 
     view(run) {
       const portrait = this.height > this.width;
       const span = portrait ? 860 : clamp(this.width * 1.05, 1100, 1650);
       const speed = Math.hypot(run.vx, run.vy);
-      const zoom = (this.width / span) * mix(1, 0.84, clamp((speed - 700) / 1300, 0, 1));
-      return { zoom, anchor: portrait ? 0.24 : 0.3, lift: 60 / zoom * 0.35 };
+      const baseZoom = (this.width / span) * mix(1, 0.84, clamp((speed - 700) / 1300, 0, 1));
+      // Frame the rider and nearby ground, anticipating ascent before the apex leaves view.
+      let low = this.drawnHeight(run, run.x), high = run.y;
+      for (let i = 0; i <= 6; i++) {
+        const x = run.x + span * (-0.25 + i * 0.12);
+        const ground = this.drawnHeight(run, x);
+        low = Math.min(low, ground); high = Math.max(high, ground);
+      }
+      const rise = run.grounded ? 0 : Math.max(0, run.vy);
+      high = Math.max(high, run.y + Math.min(rise * 0.4, rise * rise / (2 * run.rules.gravity)));
+      const zoom = Math.min(baseZoom, this.height * 0.62 / (high - low + 180));
+      const spread = high - low;
+      const framing = clamp((spread * baseZoom - this.height * 0.3) / (this.height * 0.35), 0, 1);
+      const focus = mix(run.y, (low + high) * 0.5, framing);
+      return { zoom, focus, anchor: portrait ? 0.24 : 0.3, lift: 21 / zoom };
     }
 
     /** Surface as drawn: follows the engine, but folds through a flat line for a moment after a flip. */
@@ -385,7 +410,7 @@
       for (const event of events) {
         if (event.type === 'flip') {
           this.fold = { sign: event.sign, offset: event.offset, t: 0, duration: this.reducedMotion ? 0.06 : 0.2 };
-          this.flash = { color: LINE[run.sign], age: 0, life: 0.3, strength: 0.12 };
+          this.flash = { color: LINE[run.sign], age: 0, life: 0.2, strength: 0.045 };
           this.effects.push({ kind: 'wave', x: event.x, y: event.pivot, age: 0, life: 0.45, color: LINE[run.sign] });
           if (event.quality === 'perfect' || event.quality === 'good') {
             const label = event.quality === 'perfect' ? this.text('perfect') : this.text('good');
@@ -431,6 +456,16 @@
       }
       if (this.flash && (this.flash.age += dt) > this.flash.life) this.flash = null;
       this.shake = Math.max(0, this.shake - dt);
+      const pushing = run.status === 'running' && run.boosting && run.grounded;
+      const level = pushing && !this.reducedMotion ? 1 + Math.floor(run.boostCharge * 2) : 0;
+      if (level > this.boostLevel) this.boostPulse = 0.18;
+      this.boostLevel = level;
+      this.boostPulse = level ? Math.max(0, this.boostPulse - dt) : 0;
+      const boostShake = (0.75 + 0.75 * run.boostCharge) * this.boostPulse / 0.18;
+      this.boostShake = mix(this.boostShake, boostShake, 1 - Math.exp(-dt * 18));
+      const speed = Math.hypot(run.vx, run.vy);
+      this.speedLineSpeed = mix(this.speedLineSpeed, speed, 1 - Math.exp(-dt * 4));
+      this.speedLineTravel += Math.min(this.speedLineSpeed * 0.45, 950) * dt;
       for (let index = this.effects.length - 1; index >= 0; index--) {
         const effect = this.effects[index];
         effect.age += dt;
@@ -449,13 +484,20 @@
       const view = this.view(run);
       const cam = this.camera;
       const follow = 1 - Math.exp(-dt * 3.2);
-      cam.zoom = mix(cam.zoom, view.zoom, follow);
+      // Ignore small framing changes and hold the wider view through a jump or flip.
+      if (view.zoom < this.zoomTarget * 0.94) {
+        this.zoomTarget = view.zoom;
+        this.zoomHold = 0.8;
+      } else if (!run.grounded || this.fold) this.zoomHold = 0.8;
+      else this.zoomHold = Math.max(0, this.zoomHold - dt);
+      if (!this.zoomHold && view.zoom > this.zoomTarget * 1.1) this.zoomTarget = view.zoom;
+      const zoomDelta = Math.log(this.zoomTarget / cam.zoom) * (1 - Math.exp(-dt * (this.zoomTarget < cam.zoom ? 4.2 : 1.1)));
+      cam.zoom *= Math.exp(clamp(zoomDelta, -dt * 3.2, dt));
       cam.anchor = mix(cam.anchor, view.anchor, follow);
       cam.x = rider.x;
-      const ground = CF.engine.heightAt(run, rider.x);
-      const height = rider.y - ground;
-      const focus = run.grounded ? rider.y : ground + Math.min(height, (this.height * 0.34) / cam.zoom) + 20;
-      cam.y = mix(cam.y, focus + view.lift, 1 - Math.exp(-dt * (run.grounded ? 6 : 3.5)));
+      const errorY = view.focus + view.lift - cam.y;
+      const deadZone = this.height * 0.055 / cam.zoom;
+      if (Math.abs(errorY) > deadZone) cam.y += (errorY - Math.sign(errorY) * deadZone) * (1 - Math.exp(-dt * 4));
 
       const pose = this.pose;
       const target = run.grounded
@@ -464,14 +506,15 @@
       pose.angle = mix(pose.angle, target, 1 - Math.exp(-dt * (run.grounded ? 22 : 7)));
       pose.squash = mix(pose.squash, 1, 1 - Math.exp(-dt * 10));
       pose.wobble += dt * (4 + Math.hypot(run.vx, run.vy) / 120);
-      // Casters roll with the ground speed; boost held in the air spins them for nothing.
+      // Casters roll on the ground and spin freely during flight.
       pose.roll = (pose.roll + dt * (run.grounded ? run.speed : run.boosting ? 1800 : 0) / 5.5) % TAU;
     }
 
     draw(run, options = {}) {
       const ctx = this.ctx;
-      const shakeX = this.shake > 0 ? (Math.random() - 0.5) * 16 * this.shake / 0.3 : 0;
-      const shakeY = this.shake > 0 ? (Math.random() - 0.5) * 12 * this.shake / 0.3 : 0;
+      const vibration = this.reducedMotion || !run.grounded || run.status !== 'running' ? 0 : this.boostShake;
+      const shakeX = (this.reducedMotion ? 0 : this.shake > 0 ? (Math.random() - 0.5) * 16 * this.shake / 0.3 : 0) + Math.sin(this.time * 89) * vibration;
+      const shakeY = (this.reducedMotion ? 0 : this.shake > 0 ? (Math.random() - 0.5) * 12 * this.shake / 0.3 : 0) + Math.sin(this.time * 113) * vibration * 0.65;
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       this.shiftX = shakeX;
       this.shiftY = shakeY;
@@ -584,17 +627,17 @@
 
     drawSpeedLines(run) {
       if (this.reducedMotion) return;
-      const speed = Math.hypot(run.vx, run.vy);
-      const strength = clamp((speed - 1150) / 900, 0, 1) + (run.boosting && run.grounded ? 0.6 : 0);
+      const speed = this.speedLineSpeed;
+      const strength = clamp((speed - 1400) / 1400, 0, 1) + (run.boosting && run.grounded ? 0.2 : 0);
       if (!strength) return;
       const ctx = this.ctx;
-      ctx.strokeStyle = `rgba(255,255,255,${(0.35 * Math.min(1, strength)).toFixed(2)})`;
-      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = `rgba(255,255,255,${(0.16 * Math.min(1, strength)).toFixed(2)})`;
+      ctx.lineWidth = 1.1;
       ctx.beginPath();
-      for (let index = 0; index < 14; index++) {
+      for (let index = 0; index < 8; index++) {
         const lane = hash(index * 9.1);
-        const length = 60 + speed * 0.08 * (0.5 + hash(index * 4.4));
-        const travel = (this.time * speed * 0.9 + hash(index) * 4000) % (this.width + length * 2);
+        const length = 60 + 100 * hash(index * 4.4);
+        const travel = (this.speedLineTravel + hash(index) * 4000) % (this.width + length * 2);
         const x = this.width + length - travel;
         const y = this.height * (0.12 + lane * 0.7);
         ctx.moveTo(x, y);
@@ -986,8 +1029,17 @@
       ctx.translate(x, y);
       ctx.rotate(-this.pose.angle);
       ctx.scale(size, size * this.pose.squash);
-      if (run.boosting && run.grounded) paintFlame(ctx, this.time);
-      else if (run.boosting) paintSpin(ctx, this.time);
+      if (run.boosting) {
+        ctx.save();
+        if (!run.grounded) {
+          const direction = CF.engine.airBoostDirection(run);
+          ctx.translate(-18, -22);
+          ctx.rotate(this.pose.angle - Math.atan2(direction.y, direction.x));
+          ctx.translate(18, 22);
+        }
+        paintFlame(ctx, this.reducedMotion ? 0 : this.time, Math.sqrt(run.boostCharge), run.grounded ? 1 : 0.65);
+        ctx.restore();
+      }
       paintRider(ctx, { speed: Math.hypot(run.vx, run.vy), air: !run.grounded, wobble: this.pose.wobble, roll: this.pose.roll, color: LINE[run.sign] });
       ctx.restore();
     }
@@ -1073,22 +1125,12 @@
 
   }
 
-  /** Wheels spinning in the air while boost is held: grey puffs, no push. */
-  function paintSpin(ctx, time) {
-    ctx.fillStyle = 'rgba(210,215,230,0.7)';
-    for (let index = 0; index < 4; index++) {
-      const phase = (time * 6 + index / 4) % 1;
-      ctx.beginPath();
-      ctx.arc(-20 - phase * 26, -5 - phase * 8, 3 + phase * 6, 0, TAU);
-      ctx.fill();
-    }
-  }
-
   /** Boost flame behind the chair: an outlined teardrop with a hot core. */
-  function paintFlame(ctx, time) {
+  function paintFlame(ctx, time, charge = 0, strength = 1) {
     const flicker = 0.8 + 0.2 * Math.sin(time * 60) + 0.08 * Math.sin(time * 23);
-    const length = 46 * flicker;
+    const length = 46 * flicker * (1 + charge * 2.2) * strength;
     const tongue = (reach, half, color) => {
+      half *= 1 + charge * 0.25;
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.moveTo(-18, -22 - half);
