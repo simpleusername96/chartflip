@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1b1f46">
+<meta name="description" content="Chartflip: slide home on market charts. Flip at every bottom, collect coins and spend them on boost.">
+<title>Chartflip</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<header id="hud" class="hud" hidden>
+  <button class="icon" id="backButton" type="button">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+  </button>
+  <div class="hud-center">
+    <div class="clock"><span id="timer">00.00</span><span id="delta" class="delta"></span></div>
+    <canvas id="minimap"></canvas>
+  </div>
+  <div class="hud-right">
+    <button class="icon" id="pauseButton" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
+    </button>
+  </div>
+</header>
+
+<button id="boostButton" class="boost" type="button" hidden>
+  <span class="boost-ring" aria-hidden="true"></span>
+  <span class="boost-core" aria-hidden="true"><i class="coin-dot"></i><b id="cashCount">0</b></span>
+  <span class="boost-name" id="boostName" aria-hidden="true"></span>
+  <kbd class="slot-key" aria-hidden="true">X</kbd>
+</button>
+
+<div id="prompt" class="prompt" hidden>
+  <strong id="promptCourse"></strong>
+  <span class="prompt-go" id="promptTitle"></span>
+  <span class="controls">
+    <span><kbd id="flipKey">Space</kbd><em id="flipLabel"></em></span>
+    <span><kbd id="itemKey">X</kbd><em id="itemLabel"></em></span>
+  </span>
+</div>
+<div id="hint" class="hint" hidden></div>
+
+<section id="menu" class="screen menu" hidden>
+  <div class="menu-inner">
+    <header class="brand">
+      <h1 class="logo" aria-label="Chartflip"><span>CHART</span><span class="flip" aria-hidden="true">FLIP</span></h1>
+      <p class="tagline" id="tagline"></p>
+      <p class="tally" id="tally" hidden></p>
+    </header>
+    <div class="courses" id="courseList"></div>
+    <footer class="menu-footer">
+      <button id="helpButton" class="round" type="button">?</button>
+      <button id="soundToggle" class="round" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 9h4l5-4v14l-5-4H4z"/><path class="on" d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/><path class="off" d="M17 9l5 6M22 9l-5 6"/></svg>
+      </button>
+      <button id="guideToggle" class="round" type="button">⇅</button>
+      <button id="langToggle" class="round" type="button"></button>
+    </footer>
+  </div>
+</section>
+
+<section id="pauseScreen" class="screen dim" hidden>
+  <div class="panel pause" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+    <h2 id="pauseTitle"></h2>
+    <button id="resumeButton" class="primary" type="button"></button>
+    <div class="row">
+      <button id="restartButton" class="secondary" type="button"></button>
+      <button id="menuButton" class="secondary" type="button"></button>
+    </div>
+    <button id="pauseSound" class="round corner" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 9h4l5-4v14l-5-4H4z"/><path class="on" d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/><path class="off" d="M17 9l5 6M22 9l-5 6"/></svg>
+    </button>
+  </div>
+</section>
+
+<section id="resultScreen" class="screen dim" hidden>
+  <div class="panel result" role="dialog" aria-modal="true" aria-labelledby="resultVerdict">
+    <div class="medal" id="resultMedal" aria-hidden="true"></div>
+    <p class="verdict" id="resultVerdict"></p>
+    <div class="time" id="resultTime"></div>
+    <p class="compare" id="resultCompare"></p>
+    <p class="target" id="resultTarget"></p>
+    <ul class="recap" id="resultRecap"></ul>
+    <button id="retryButton" class="primary" type="button"></button>
+    <div class="row">
+      <button id="nextButton" class="secondary" type="button"></button>
+      <button id="coursesButton" class="secondary" type="button"></button>
+    </div>
+    <button id="copyButton" class="round corner" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v10H9zM5 15V5h10"/></svg>
+    </button>
+  </div>
+</section>
+
+<section id="helpScreen" class="screen dim" hidden>
+  <div class="panel help" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <h2 id="helpTitle"></h2>
+    <ol class="steps" id="helpSteps"></ol>
+    <p id="helpKeys" class="fine"></p>
+    <button id="helpClose" class="primary" type="button"></button>
+    <p id="dataNote" class="fine"></p>
+  </div>
+</section>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="src/terrain.js"></script>
+<script src="src/courses.js"></script>
+<script src="src/items.js"></script>
+<script src="src/engine.js"></script>
+<script src="src/i18n.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/render.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
