@@ -11,8 +11,8 @@
       tapToStart: '탭해서 출발',
       keyToStart: '스페이스로 출발',
       flip: '뒤집기',
+      flipMap: '맵 뒤집기',
       boost: '부스트',
-      hold: '꾹',
       crawlHint: '탭! 뒤집으면 내리막',
       perfect: 'PERFECT',
       good: 'GOOD',
@@ -44,7 +44,7 @@
       close: '확인',
       helpSteps: [
         ['바닥에서 뒤집기', '탭하면 차트가 뒤집혀요. 바닥에서 뒤집으면 오르막이 내리막이 돼요.'],
-        ['코인 = 부스트 연료', '코인을 먹으면 오른쪽 아래 게이지가 차요. 가득 차면 더 못 담아요.'],
+        ['코인 = 부스트 연료', '코인을 먹으면 왼쪽 아래 게이지가 차요. 가득 차면 더 못 담아요.'],
         ['꾹 눌러 부스트', '길게 누를수록 강해져요. 공중에서도 날아가는 방향으로 가속해요.']
       ],
       keys: '스페이스 뒤집기 · X 꾹 부스트 · R 다시 · Esc 일시정지',
@@ -66,8 +66,8 @@
       tapToStart: 'Tap to start',
       keyToStart: 'Press Space to start',
       flip: 'Flip',
+      flipMap: 'Flip map',
       boost: 'Boost',
-      hold: 'hold',
       crawlHint: 'Tap! Flip it into a slide',
       perfect: 'PERFECT',
       good: 'GOOD',
@@ -99,7 +99,7 @@
       close: 'Got it',
       helpSteps: [
         ['Flip at the bottom', 'A tap flips the chart. Flip at a bottom and the climb ahead becomes a slide.'],
-        ['Coins fuel the boost', 'Coins fill the gauge at the bottom right. A full gauge takes no more.'],
+        ['Coins fuel the boost', 'Coins fill the gauge at the bottom left. A full gauge takes no more.'],
         ['Hold to boost', 'Hold longer for more power. In the air, boost along your flight path.']
       ],
       keys: 'Space flip · hold X boost · R retry · Esc pause',

@@ -17,9 +17,9 @@
   const $ = id => document.getElementById(id);
   const ui = {
     canvas: $('game'), hud: $('hud'), timer: $('timer'), delta: $('delta'), minimap: $('minimap'), backButton: $('backButton'),
-    pauseButton: $('pauseButton'), boostButton: $('boostButton'), cashCount: $('cashCount'), boostName: $('boostName'),
-    prompt: $('prompt'), promptCourse: $('promptCourse'), promptTitle: $('promptTitle'), flipKey: $('flipKey'), itemKey: $('itemKey'),
-    flipLabel: $('flipLabel'), itemLabel: $('itemLabel'), hint: $('hint'), menu: $('menu'), tagline: $('tagline'), tally: $('tally'),
+    pauseButton: $('pauseButton'), wallet: $('wallet'), cashCount: $('cashCount'), burnTag: $('burnTag'), boostName: $('boostName'),
+    keys: $('keys'), flipButton: $('flipButton'), boostButton: $('boostButton'), boostKey: $('boostKey'), flipCaption: $('flipCaption'),
+    boostCaption: $('boostCaption'), prompt: $('prompt'), promptCourse: $('promptCourse'), promptTitle: $('promptTitle'), hint: $('hint'), menu: $('menu'), tagline: $('tagline'), tally: $('tally'),
     courseList: $('courseList'), helpButton: $('helpButton'), soundToggle: $('soundToggle'),
     langToggle: $('langToggle'), pauseScreen: $('pauseScreen'), pauseTitle: $('pauseTitle'), resumeButton: $('resumeButton'),
     restartButton: $('restartButton'), menuButton: $('menuButton'), pauseSound: $('pauseSound'), resultScreen: $('resultScreen'),
@@ -266,7 +266,7 @@
     app.ghost = null;
     hideOverlays();
     show(ui.hud, false);
-    show(ui.boostButton, false);
+    showDock(false);
     renderCourses();
     show(ui.menu, true);
     startDemo();
@@ -289,7 +289,7 @@
     renderer.reset(app.run);
     hideOverlays();
     show(ui.hud, true);
-    show(ui.boostButton, true);
+    showDock(true);
     measureMinimap();
     ui.promptCourse.textContent = `${name(course.def)} · ${t('goldTarget', course.def.medals[0])}`;
     show(ui.prompt, true);
@@ -325,7 +325,26 @@
   function setBoost(held) {
     if (held && app.screen === 'ready') startRun();
     app.boostHeld = held && (app.screen === 'running' || app.screen === 'ready');
-    ui.boostButton.classList.toggle('held', app.boostHeld);
+    ui.boostButton.classList.toggle('down', app.boostHeld);
+  }
+
+  /** The SPACE key cap stays down while its key, the key cap or the game view is pressed. */
+  function setFlipDown(down) {
+    ui.flipButton.classList.toggle('down', down && (app.screen === 'running' || app.screen === 'ready'));
+  }
+
+  /** No key cap may stay pressed across a screen change, pause or lost focus. */
+  function releaseKeys() {
+    setBoost(false);
+    setFlipDown(false);
+  }
+
+  /** Bottom dock: the cash wallet and key guide appear with the run. */
+  function showDock(visible) {
+    releaseKeys();
+    show(ui.wallet, visible);
+    show(ui.keys, visible);
+    shown.boost = undefined;
   }
 
   function pause() {
@@ -333,6 +352,7 @@
     app.screen = 'paused';
     sound.setMusic('pause');
     app.pausedFrame = false;
+    releaseKeys();
     show(ui.hint, false);
     show(ui.pauseScreen, true);
     ui.resumeButton.focus();
@@ -413,8 +433,7 @@
     }
     show(ui.nextButton, app.index < CF.courses.length - 1);
     show(ui.hint, false);
-    show(ui.boostButton, false);
-    setBoost(false);
+    showDock(false);
     show(ui.resultScreen, true);
     ui.retryButton.focus();
   }
@@ -488,10 +507,10 @@
     ui.langToggle.setAttribute('aria-label', t('languageName'));
     ui.langToggle.title = t('languageName');
     ui.promptTitle.textContent = t(touchFirst ? 'tapToStart' : 'keyToStart');
-    ui.flipKey.textContent = touchFirst ? '👆' : 'Space';
-    ui.itemKey.textContent = touchFirst ? '◉' : 'X';
-    ui.itemLabel.textContent = `${t('hold')} ${t('boost')}`;
-    ui.flipLabel.textContent = t('flip');
+    ui.boostKey.textContent = touchFirst ? '🔥' : 'X';
+    ui.flipCaption.textContent = t('flipMap');
+    ui.boostCaption.textContent = t('boost');
+    ui.burnTag.textContent = `−${E.RULES.burnRate}/${t('seconds')}`;
     ui.pauseTitle.textContent = t('paused');
     ui.resumeButton.textContent = t('resume');
     ui.restartButton.textContent = t('restart');
@@ -521,6 +540,7 @@
     ui.backButton.setAttribute('aria-label', t('back'));
     ui.pauseButton.setAttribute('aria-label', t('pause'));
     ui.boostButton.setAttribute('aria-label', t('boostButton'));
+    ui.flipButton.setAttribute('aria-label', t('flipMap'));
     ui.boostName.textContent = t('full');
     if (app.run) ui.promptCourse.textContent = `${name(app.run.course.def)} · ${t('goldTarget', app.run.course.def.medals[0])}`;
     shown.boost = undefined;
@@ -713,17 +733,20 @@
     element.textContent = value;
   }
 
-  /** The boost button is the cash gauge: gold ring up to the cash level, flame colours while held. */
+  /** The wallet is the cash gauge: coin count and a twelve-cell tank that burns in flame colours while boosting. */
   function updateBoost(run) {
     const rules = run.rules;
-    // Half-coin steps: the ring moves smoothly enough, and the button restyles 20 times a second at most.
-    const state = Math.round(run.cash * 2) * 4 + (run.boosting ? (run.grounded ? 1 : 2) : 0);
+    const dry = app.boostHeld && run.cash <= 0 && app.screen === 'running';
+    // Half-coin steps: the tank moves smoothly enough, and the wallet restyles 20 times a second at most.
+    const state = Math.round(run.cash * 2) * 4 + (run.boosting ? 1 : 0) + (dry ? 2 : 0);
     if (shown.boost !== state) {
       shown.boost = state;
-      ui.boostButton.style.setProperty('--fill', (run.cash / rules.cashMax).toFixed(3));
+      ui.wallet.style.setProperty('--fill', (run.cash / rules.cashMax).toFixed(3));
+      ui.wallet.classList.toggle('on', run.boosting);
+      ui.wallet.classList.toggle('full', run.cash >= rules.cashMax - 1e-9);
+      ui.wallet.classList.toggle('empty', run.cash <= 0);
+      ui.wallet.classList.toggle('dry', dry);
       ui.boostButton.classList.toggle('on', run.boosting);
-      ui.boostButton.classList.toggle('full', run.cash >= rules.cashMax - 1e-9);
-      ui.boostButton.classList.toggle('empty', run.cash <= 0);
       ui.cashCount.textContent = String(Math.ceil(run.cash - 1e-9));
     }
     ui.boostName.classList.toggle('show', app.fullNote > 0);
@@ -810,18 +833,29 @@
   }
 
   // ---------- input ----------
-  // Anywhere on the game flips; holding the boost button (bottom right) burns cash for speed.
+  // Anywhere on the game flips (the SPACE cap mirrors the press); holding the X cap burns cash for speed.
   ui.canvas.addEventListener('pointerdown', event => {
     if (event.button > 0) return;
     event.preventDefault();
     action();
+    setFlipDown(true);
   });
   for (const element of [ui.prompt, ui.hint]) {
     element.addEventListener('pointerdown', event => {
       event.preventDefault();
       action();
+      setFlipDown(true);
     });
   }
+  for (const type of ['pointerup', 'pointercancel']) document.addEventListener(type, () => setFlipDown(false));
+  ui.flipButton.addEventListener('pointerdown', event => {
+    if (event.button > 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    action();
+    setFlipDown(true);
+  });
+  ui.flipButton.addEventListener('contextmenu', event => event.preventDefault());
   ui.boostButton.addEventListener('pointerdown', event => {
     event.preventDefault();
     event.stopPropagation();
@@ -842,6 +876,7 @@
     if (FLIP_KEYS.has(event.code) && inRun) {
       event.preventDefault();
       if (!event.repeat) action();
+      setFlipDown(true);
       return;
     }
     if (BOOST_KEYS.has(event.code) && inRun) {
@@ -886,10 +921,11 @@
 
   document.addEventListener('keyup', event => {
     if (BOOST_KEYS.has(event.code)) setBoost(false);
+    if (FLIP_KEYS.has(event.code)) setFlipDown(false);
   });
 
   window.addEventListener('blur', () => {
-    setBoost(false);
+    releaseKeys();
     pause();
   });
   document.addEventListener('visibilitychange', () => {

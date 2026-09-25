@@ -26,20 +26,21 @@
   </div>
 </header>
 
-<button id="boostButton" class="boost" type="button" hidden>
-  <span class="boost-ring" aria-hidden="true"></span>
-  <span class="boost-core" aria-hidden="true"><i class="coin-dot"></i><b id="cashCount">0</b></span>
-  <span class="boost-name" id="boostName" aria-hidden="true"></span>
-  <kbd class="slot-key" aria-hidden="true">X</kbd>
-</button>
+<div id="wallet" class="wallet" hidden>
+  <span class="wallet-coin" aria-hidden="true">₩</span>
+  <span class="wallet-count"><b id="cashCount">0</b><span class="wallet-burn" id="burnTag"></span></span>
+  <span class="wallet-tank" aria-hidden="true"><i></i></span>
+  <span class="wallet-note" id="boostName" aria-hidden="true"></span>
+</div>
+
+<div id="keys" class="keys" hidden>
+  <button id="flipButton" class="key key-space" type="button"><kbd>SPACE</kbd><em id="flipCaption"></em></button>
+  <button id="boostButton" class="key key-x" type="button"><kbd id="boostKey">X</kbd><em id="boostCaption"></em></button>
+</div>
 
 <div id="prompt" class="prompt" hidden>
   <strong id="promptCourse"></strong>
   <span class="prompt-go" id="promptTitle"></span>
-  <span class="controls">
-    <span><kbd id="flipKey">Space</kbd><em id="flipLabel"></em></span>
-    <span><kbd id="itemKey">X</kbd><em id="itemLabel"></em></span>
-  </span>
 </div>
 <div id="hint" class="hint" hidden></div>
 

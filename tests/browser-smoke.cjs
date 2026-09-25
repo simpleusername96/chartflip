@@ -52,6 +52,7 @@ function installPilot() {
       }
       if (target && s.x >= target.x) {
         document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', bubbles: true }));
         target = null;
       }
       // Hold through jumps so the real UI exercises airborne propulsion.
@@ -122,19 +123,23 @@ async function main() {
       assert.equal(await page.evaluate(() => Chartflip.app.snapshot().screen), 'ready', 'refresh keeps the selected stage');
       assert.equal(await page.evaluate(() => Chartflip.app.snapshot().course), 'practice');
       await page.evaluate(installPilot);
-      // Ready screen: one compact card (course, start, two controls) and the empty item slot.
+      // Ready screen: one compact card (course, start) above the key guide, and the cash wallet.
       const ready = await page.evaluate(() => {
-        const prompt = document.getElementById('prompt').getBoundingClientRect();
-        const slot = document.getElementById('boostButton').getBoundingClientRect();
-        const apart = prompt.right <= slot.left + 1 || prompt.bottom <= slot.top + 1;
+        const box = id => document.getElementById(id).getBoundingClientRect();
+        const apart = (a, b) => a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1;
+        const inside = r => r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+        const prompt = box('prompt'), keys = box('boostButton'), wallet = box('wallet');
+        const flip = document.getElementById('flipButton');
+        const flipBox = flip.offsetParent ? flip.getBoundingClientRect() : keys;
         return {
-          shown: !document.getElementById('prompt').hidden && !document.getElementById('boostButton').hidden,
-          inside: prompt.left >= 0 && prompt.right <= innerWidth && slot.right <= innerWidth && slot.bottom <= innerHeight,
-          apart, words: document.getElementById('prompt').innerText.trim().split(/\s+/).length
+          shown: !document.getElementById('prompt').hidden && !document.getElementById('keys').hidden && !document.getElementById('wallet').hidden,
+          inside: inside(prompt) && inside(keys) && inside(wallet) && inside(flipBox),
+          apart: apart(prompt, keys) && apart(prompt, flipBox) && apart(prompt, wallet) && apart(wallet, keys) && apart(wallet, flipBox),
+          words: document.getElementById('prompt').innerText.trim().split(/\s+/).length
         };
       });
-      assert.ok(ready.shown && ready.inside, `${label}: the start card and boost button are on screen`);
-      assert.ok(ready.apart, `${label}: the start card does not cover the boost button`);
+      assert.ok(ready.shown && ready.inside, `${label}: the start card, keys and wallet are on screen`);
+      assert.ok(ready.apart, `${label}: the start card, keys and wallet do not overlap`);
       assert.ok(ready.words <= 12, `${label}: the start card stays short (${ready.words} words)`);
       await shot(page, `${label}-ready`);
       await page.keyboard.press('Space');
@@ -166,6 +171,17 @@ async function main() {
         await page.waitForTimeout(4000);
         const split = await page.locator('#delta').textContent();
         assert.match(split, /^[+−]\d+\.\d\d$/, `ghost split appears on a retry as a signed time (${split})`);
+        // Key caps mirror the held keys and never stay down after release or lost focus.
+        const caps = () => page.evaluate(() => ['flipButton', 'boostButton'].map(id => document.getElementById(id).classList.contains('down')));
+        await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ShiftLeft', bubbles: true })));
+        assert.deepEqual(await caps(), [false, true], 'holding a boost key presses the X cap');
+        await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keyup', { code: 'ShiftLeft', bubbles: true })));
+        assert.deepEqual(await caps(), [false, false], 'releasing the boost key lifts the X cap');
+        await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF', bubbles: true })));
+        assert.deepEqual((await caps())[0], true, 'a flip key presses the SPACE cap');
+        await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+        assert.deepEqual(await caps(), [false, false], 'losing focus releases every cap');
+        await page.click('#resumeButton');
         await page.keyboard.press('Escape');
         assert.equal(await page.locator('#pauseScreen').isVisible(), true, 'Escape pauses');
         await page.click('#menuButton');

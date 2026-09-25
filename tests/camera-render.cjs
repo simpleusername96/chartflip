@@ -15,7 +15,7 @@ async function main() {
       await page.goto(ORIGIN);
       const trace = await page.evaluate(() => {
         const CF = Chartflip, E = CF.engine;
-        document.querySelectorAll('.screen, #hud, #prompt, #boostButton').forEach(el => { el.hidden = true; });
+        document.querySelectorAll('.screen, #hud, #prompt, #keys, #wallet').forEach(el => { el.hidden = true; });
         const course = CF.terrain.buildCourse({ id: 'camera-flight', kind: 'authored', points: [[0, 0], [40000, 0]], medals: [20, 30, 40], name: { ko: 'Camera', en: 'Camera' }, coinLayout: [] });
         const run = E.createRun(course); E.start(run);
         const renderer = new CF.render.Renderer(document.getElementById('game'), { text: key => CF.i18n.TEXT.en[key] || '' });

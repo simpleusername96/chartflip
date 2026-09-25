@@ -24,7 +24,7 @@ async function main() {
       page.on('pageerror', e => errors.push(e.message));
       await page.goto(ORIGIN);
       await page.evaluate(reduced => {
-        document.querySelectorAll('.screen, #hud, #prompt, #boostButton').forEach(el => { el.hidden = true; });
+        document.querySelectorAll('.screen, #hud, #prompt, #keys, #wallet').forEach(el => { el.hidden = true; });
         const CF = Chartflip, E = CF.engine;
         const course = CF.terrain.buildCourse({ id: 'boost-lab', kind: 'authored', points: [[0, 0], [30000, -3000], [32000, -3000]], medals: [20, 30, 40], name: { ko: 'Boost', en: 'Boost' }, coinLayout: [] });
         const run = E.createRun(course); E.start(run); run.cash = 60;
