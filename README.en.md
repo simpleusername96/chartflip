@@ -12,8 +12,10 @@ Press Space to flip the chart upside down. Flip at a valley to turn the uphill a
 
 | Action | Keyboard | Touch |
 |---|---|---|
-| Flip | Space | Tap the screen |
+| Flip | Space | Bottom-left Flip button |
 | Boost | Hold X | Hold the bottom-right button |
+
+On a phone, turn the screen sideways to play. Opening a course in portrait shows a rotation prompt.
 
 Create maps by adjusting difficulty, length, hills and coin placement, then set your medal targets. Save your maps or exchange them as files.
 

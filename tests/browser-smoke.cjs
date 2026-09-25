@@ -86,6 +86,48 @@ async function noOverflow(page, label) {
   assert.ok(box.scroll <= box.width + 1, `${label}: horizontal overflow`);
 }
 
+async function touchControls(context) {
+  const page = await context.newPage();
+  try {
+    await page.goto(`${ORIGIN}/index.html`);
+    await page.waitForFunction(() => window.Chartflip?.app);
+    await page.tap('.course[data-index="0"]');
+    await page.tap('#flipButton');
+    assert.equal(await page.evaluate(() => Chartflip.app.snapshot().screen), 'running', 'Flip starts a ready run');
+    await page.touchscreen.tap(420, 150);
+    await page.waitForTimeout(60);
+    assert.equal(await page.evaluate(() => Chartflip.app.snapshot().flips), 0, 'touching the chart does not flip');
+
+    const boost = await page.locator('#boostButton').boundingBox();
+    const flip = await page.locator('#flipButton').boundingBox();
+    const b = { x: boost.x + boost.width / 2, y: boost.y + 35, id: 1 };
+    const f = { x: flip.x + flip.width / 2, y: flip.y + 35, id: 2 };
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [b] });
+    assert.equal(await page.locator('#boostButton').evaluate(el => el.classList.contains('down')), true, 'Boost holds');
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [b, f] });
+    await page.waitForFunction(() => Chartflip.app.snapshot().flips > 0);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [f] });
+    assert.equal(await page.locator('#boostButton').evaluate(el => el.classList.contains('down')), true, 'Flip release preserves Boost');
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [b] });
+    assert.equal(await page.locator('#boostButton').evaluate(el => el.classList.contains('down')), false, 'Boost releases');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('#rotateScreen:not([hidden])').waitFor();
+    assert.equal(await page.evaluate(() => Chartflip.app.snapshot().screen), 'paused', 'rotating portrait pauses the run');
+    const tick = await page.evaluate(() => Chartflip.app.snapshot().tick);
+    await page.waitForTimeout(100);
+    assert.equal(await page.evaluate(() => Chartflip.app.snapshot().tick), tick, 'portrait pause freezes the timer');
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.waitForFunction(() => document.getElementById('rotateScreen').hidden);
+    assert.equal(await page.evaluate(() => Chartflip.app.snapshot().screen), 'paused', 'returning landscape stays paused');
+    await page.tap('#resumeButton');
+    assert.equal(await page.evaluate(() => Chartflip.app.snapshot().screen), 'running', 'resume works in landscape');
+  } finally {
+    await page.close();
+  }
+}
+
 async function main() {
   const playwright = loadPlaywright();
   if (!playwright) {
@@ -105,8 +147,8 @@ async function main() {
   }
   const errors = [];
   try {
-    for (const [label, width, height] of [['desktop', 1440, 900], ['phone', 390, 844], ['landscape', 844, 390]]) {
-      const context = await browser.newContext({ viewport: { width, height }, hasTouch: label !== 'desktop', locale: 'ko-KR' });
+    for (const [label, width, height] of [['desktop', 1440, 900], ['phone', 390, 844], ['landscape', 844, 390], ['narrow', 568, 320]]) {
+      const context = await browser.newContext({ viewport: { width, height }, hasTouch: label !== 'desktop', isMobile: label !== 'desktop', locale: 'ko-KR' });
       await serve(context);
       const page = await context.newPage();
       page.on('pageerror', error => errors.push(`${label}: ${error.message}`));
@@ -115,6 +157,7 @@ async function main() {
       await page.waitForFunction(() => window.Chartflip && window.Chartflip.app, null, { timeout: 15000 });
       assert.equal(await page.locator('.course').count(), 15, `${label}: fifteen course cards`);
       await shot(page, `${label}-menu`);
+      if (label === 'landscape') await touchControls(context);
 
       await page.evaluate(installPilot);
       await page.click('.course[data-index="0"]');
@@ -122,6 +165,17 @@ async function main() {
       await page.waitForFunction(() => window.Chartflip?.app);
       assert.equal(await page.evaluate(() => Chartflip.app.snapshot().screen), 'ready', 'refresh keeps the selected stage');
       assert.equal(await page.evaluate(() => Chartflip.app.snapshot().course), 'practice');
+      if (label === 'phone') {
+        await page.locator('#rotateScreen:not([hidden])').waitFor();
+        await shot(page, `${label}-rotate`);
+        await page.keyboard.press('Space');
+        assert.equal(await page.evaluate(() => Chartflip.app.snapshot().screen), 'ready', 'portrait does not start a run');
+        await page.click('#rotateBack');
+        assert.equal(await page.locator('#menu').isVisible(), true, 'rotation prompt can return to courses');
+        await page.click('.course[data-index="0"]');
+        await page.setViewportSize({ width: 844, height: 390 });
+        await page.waitForFunction(() => document.getElementById('rotateScreen').hidden);
+      }
       await page.evaluate(installPilot);
       // Ready screen: one compact card (course, start) above the key guide, and the cash wallet.
       const ready = await page.evaluate(() => {
@@ -134,12 +188,12 @@ async function main() {
         return {
           shown: !document.getElementById('prompt').hidden && !document.getElementById('keys').hidden && !document.getElementById('wallet').hidden,
           inside: inside(prompt) && inside(keys) && inside(wallet) && inside(flipBox),
-          apart: apart(prompt, keys) && apart(prompt, flipBox) && apart(prompt, wallet) && apart(wallet, keys) && apart(wallet, flipBox),
+          apart: apart(prompt, keys) && apart(prompt, flipBox) && apart(prompt, wallet) && apart(wallet, keys) && apart(wallet, flipBox) && apart(wallet, box('minimap')),
           words: document.getElementById('prompt').innerText.trim().split(/\s+/).length
         };
       });
       assert.ok(ready.shown && ready.inside, `${label}: the start card, keys and wallet are on screen`);
-      assert.ok(ready.apart, `${label}: the start card, keys and wallet do not overlap`);
+      assert.ok(ready.apart, `${label}: the start card, keys, wallet and minimap do not overlap`);
       assert.ok(ready.words <= 12, `${label}: the start card stays short (${ready.words} words)`);
       await shot(page, `${label}-ready`);
       await page.keyboard.press('Space');
@@ -197,7 +251,7 @@ async function main() {
     await browser.close();
   }
   assert.deepEqual(errors, [], 'no page errors');
-  console.log('browser smoke: ok (desktop, phone, landscape)');
+  console.log('browser smoke: ok (desktop, phone, landscape, narrow landscape)');
 }
 
 module.exports = { loadPlaywright, serve, installPilot, shot, noOverflow, ORIGIN };

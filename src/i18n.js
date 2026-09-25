@@ -13,7 +13,9 @@
       flip: '뒤집기',
       flipMap: '맵 뒤집기',
       boost: '부스트',
-      crawlHint: '탭! 뒤집으면 내리막',
+      crawlHint: '뒤집기! 내리막으로 바꾸세요',
+      rotateToPlay: '가로로 돌려 플레이',
+      rotateHint: '화면 회전이 잠겨 있다면 잠금을 해제해 주세요.',
       perfect: 'PERFECT',
       good: 'GOOD',
       clean: 'CLEAN',
@@ -43,8 +45,8 @@
       help: '플레이 방법',
       close: '확인',
       helpSteps: [
-        ['바닥에서 뒤집기', '탭하면 차트가 뒤집혀요. 바닥에서 뒤집으면 오르막이 내리막이 돼요.'],
-        ['코인 = 부스트 연료', '코인을 먹으면 왼쪽 아래 게이지가 차요. 가득 차면 더 못 담아요.'],
+        ['바닥에서 뒤집기', '뒤집기를 누르면 차트가 바뀌어요. 바닥에서 뒤집으면 오르막이 내리막이 돼요.'],
+        ['코인 = 부스트 연료', '코인을 먹으면 연료 게이지가 차요. 가득 차면 더 못 담아요.'],
         ['꾹 눌러 부스트', '길게 누를수록 강해져요. 공중에서도 날아가는 방향으로 가속해요.']
       ],
       keys: '스페이스 뒤집기 · X 꾹 부스트 · R 다시 · Esc 일시정지',
@@ -68,7 +70,9 @@
       flip: 'Flip',
       flipMap: 'Flip map',
       boost: 'Boost',
-      crawlHint: 'Tap! Flip it into a slide',
+      crawlHint: 'Flip! Turn the climb into a slide',
+      rotateToPlay: 'Turn sideways to play',
+      rotateHint: 'Unlock screen rotation if needed.',
       perfect: 'PERFECT',
       good: 'GOOD',
       clean: 'CLEAN',
@@ -98,8 +102,8 @@
       help: 'How to play',
       close: 'Got it',
       helpSteps: [
-        ['Flip at the bottom', 'A tap flips the chart. Flip at a bottom and the climb ahead becomes a slide.'],
-        ['Coins fuel the boost', 'Coins fill the gauge at the bottom left. A full gauge takes no more.'],
+        ['Flip at the bottom', 'Use Flip to change the chart. Flip at a bottom and the climb ahead becomes a slide.'],
+        ['Coins fuel the boost', 'Coins fill the fuel gauge. A full gauge takes no more.'],
         ['Hold to boost', 'Hold longer for more power. In the air, boost along your flight path.']
       ],
       keys: 'Space flip · hold X boost · R retry · Esc pause',

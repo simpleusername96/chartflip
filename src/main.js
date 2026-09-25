@@ -27,6 +27,7 @@
     resultTarget: $('resultTarget'), resultRecap: $('resultRecap'), retryButton: $('retryButton'), nextButton: $('nextButton'),
     coursesButton: $('coursesButton'), copyButton: $('copyButton'), helpScreen: $('helpScreen'), helpTitle: $('helpTitle'),
     helpSteps: $('helpSteps'), helpKeys: $('helpKeys'), helpClose: $('helpClose'),
+    rotateScreen: $('rotateScreen'), rotateTitle: $('rotateTitle'), rotateHint: $('rotateHint'), rotateBack: $('rotateBack'),
     toast: $('toast')
   };
 
@@ -110,6 +111,8 @@
     pausedFrame: false,
     fullNote: 0
   };
+  const flipPointers = new Set();
+  let boostPointerId = null;
 
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new CF.render.Renderer(ui.canvas, { reducedMotion, text: t });
@@ -255,8 +258,22 @@
   }
 
   // ---------- screens ----------
+  function portraitRace() {
+    return touchFirst && matchMedia('(orientation: portrait)').matches &&
+      (app.screen === 'ready' || app.screen === 'running' || app.screen === 'paused');
+  }
+
+  function syncOrientation() {
+    if (portraitRace() && app.screen === 'running') pause();
+    const blocked = portraitRace();
+    const wasVisible = !ui.rotateScreen.hidden;
+    show(ui.rotateScreen, blocked);
+    if (blocked && !wasVisible) ui.rotateScreen.focus({ preventScroll: true });
+    else if (!blocked && wasVisible && app.screen === 'paused') ui.resumeButton.focus({ preventScroll: true });
+  }
+
   function hideOverlays() {
-    for (const element of [ui.menu, ui.pauseScreen, ui.resultScreen, ui.helpScreen, ui.prompt, ui.hint]) show(element, false);
+    for (const element of [ui.menu, ui.pauseScreen, ui.resultScreen, ui.helpScreen, ui.prompt, ui.hint, ui.rotateScreen]) show(element, false);
   }
 
   function showMenu() {
@@ -270,6 +287,7 @@
     renderCourses();
     show(ui.menu, true);
     startDemo();
+    syncOrientation();
     const card = ui.courseList.querySelector(`[data-index="${app.index}"]`);
     if (card) card.focus({ preventScroll: true });
   }
@@ -296,10 +314,11 @@
     app.screen = 'ready';
     sound.setMusic('ready');
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+    syncOrientation();
   }
 
   function startRun() {
-    if (app.screen !== 'ready') return;
+    if (app.screen !== 'ready' || portraitRace()) return;
     sound.unlock();
     sound.start();
     E.start(app.run);
@@ -317,14 +336,15 @@
   }
 
   function action() {
+    if (portraitRace()) return;
     if (app.screen === 'ready') startRun();
     else if (app.screen === 'running' && app.run.status === 'running') app.pending = Math.min(app.pending + 1, 2);
   }
 
   /** BOOST is held while a key or the button is down; the engine burns cash each tick it is held. */
   function setBoost(held) {
-    if (held && app.screen === 'ready') startRun();
-    app.boostHeld = held && (app.screen === 'running' || app.screen === 'ready');
+    if (held && app.screen === 'ready' && !portraitRace()) startRun();
+    app.boostHeld = held && !portraitRace() && (app.screen === 'running' || app.screen === 'ready');
     ui.boostButton.classList.toggle('down', app.boostHeld);
   }
 
@@ -335,6 +355,8 @@
 
   /** No key cap may stay pressed across a screen change, pause or lost focus. */
   function releaseKeys() {
+    flipPointers.clear();
+    boostPointerId = null;
     setBoost(false);
     setFlipDown(false);
   }
@@ -359,7 +381,7 @@
   }
 
   function resume() {
-    if (app.screen !== 'paused') return;
+    if (app.screen !== 'paused' || portraitRace()) return;
     show(ui.pauseScreen, false);
     app.screen = 'running';
     sound.setMusic('run');
@@ -384,6 +406,7 @@
     }
     sound.finish(medal < 3 ? medal : -1);
     app.screen = 'finished';
+    syncOrientation();
     sound.setMusic('finish');
     app.finishTimer = 0.9;
     app.result = { time, medal, best, previous, stats: { ...run.stats }, coins: run.items.length };
@@ -435,6 +458,7 @@
     show(ui.hint, false);
     showDock(false);
     show(ui.resultScreen, true);
+    syncOrientation();
     ui.retryButton.focus();
   }
 
@@ -507,8 +531,8 @@
     ui.langToggle.setAttribute('aria-label', t('languageName'));
     ui.langToggle.title = t('languageName');
     ui.promptTitle.textContent = t(touchFirst ? 'tapToStart' : 'keyToStart');
-    ui.boostKey.textContent = touchFirst ? '🔥' : 'X';
-    ui.flipCaption.textContent = t('flipMap');
+    ui.boostKey.textContent = 'X';
+    ui.flipCaption.textContent = t(touchFirst ? 'flip' : 'flipMap');
     ui.boostCaption.textContent = t('boost');
     ui.burnTag.textContent = `−${E.RULES.burnRate}/${t('seconds')}`;
     ui.pauseTitle.textContent = t('paused');
@@ -541,6 +565,9 @@
     ui.pauseButton.setAttribute('aria-label', t('pause'));
     ui.boostButton.setAttribute('aria-label', t('boostButton'));
     ui.flipButton.setAttribute('aria-label', t('flipMap'));
+    ui.rotateTitle.textContent = t('rotateToPlay');
+    ui.rotateHint.textContent = t('rotateHint');
+    ui.rotateBack.textContent = t('courses');
     ui.boostName.textContent = t('full');
     if (app.run) ui.promptCourse.textContent = `${name(app.run.course.def)} · ${t('goldTarget', app.run.course.def.medals[0])}`;
     shown.boost = undefined;
@@ -833,39 +860,69 @@
   }
 
   // ---------- input ----------
-  // Anywhere on the game flips (the SPACE cap mirrors the press); holding the X cap burns cash for speed.
+  // Desktop keeps view-to-flip; touch play uses the visible left button.
   ui.canvas.addEventListener('pointerdown', event => {
     if (event.button > 0) return;
     event.preventDefault();
+    if (touchFirst) {
+      if (app.screen === 'ready') action();
+      return;
+    }
     action();
+    flipPointers.add(event.pointerId);
     setFlipDown(true);
   });
   for (const element of [ui.prompt, ui.hint]) {
     element.addEventListener('pointerdown', event => {
       event.preventDefault();
+      if (touchFirst && element === ui.hint) return;
       action();
-      setFlipDown(true);
+      if (!touchFirst) {
+        flipPointers.add(event.pointerId);
+        setFlipDown(true);
+      }
     });
   }
-  for (const type of ['pointerup', 'pointercancel']) document.addEventListener(type, () => setFlipDown(false));
+  for (const type of ['pointerup', 'pointercancel']) document.addEventListener(type, event => {
+    flipPointers.delete(event.pointerId);
+    if (!flipPointers.size) setFlipDown(false);
+  });
   ui.flipButton.addEventListener('pointerdown', event => {
     if (event.button > 0) return;
     event.preventDefault();
     event.stopPropagation();
+    flipPointers.add(event.pointerId);
+    ui.flipButton.setPointerCapture(event.pointerId);
     action();
     setFlipDown(true);
   });
+  ui.flipButton.addEventListener('lostpointercapture', event => {
+    flipPointers.delete(event.pointerId);
+    if (!flipPointers.size) setFlipDown(false);
+  });
   ui.flipButton.addEventListener('contextmenu', event => event.preventDefault());
   ui.boostButton.addEventListener('pointerdown', event => {
+    if (event.button > 0 || boostPointerId !== null) return;
     event.preventDefault();
     event.stopPropagation();
+    boostPointerId = event.pointerId;
     ui.boostButton.setPointerCapture(event.pointerId);
     setBoost(true);
   });
-  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) ui.boostButton.addEventListener(type, () => setBoost(false));
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) ui.boostButton.addEventListener(type, event => {
+    if (event.pointerId !== boostPointerId) return;
+    boostPointerId = null;
+    setBoost(false);
+  });
   ui.boostButton.addEventListener('contextmenu', event => event.preventDefault());
 
   document.addEventListener('keydown', event => {
+    if (!ui.rotateScreen.hidden) {
+      if (event.code === 'Escape') showMenu();
+      else if (event.code === 'Tab') { event.preventDefault(); ui.rotateBack.focus(); }
+      else if (document.activeElement !== ui.rotateBack) event.preventDefault();
+      return;
+    }
     if (!ui.helpScreen.hidden) {
       if (event.code === 'Escape') closeHelp();
       if (event.code === 'Tab') { event.preventDefault(); ui.helpClose.focus(); }
@@ -910,6 +967,7 @@
   ui.retryButton.addEventListener('click', restart);
   ui.nextButton.addEventListener('click', next);
   ui.coursesButton.addEventListener('click', showMenu);
+  ui.rotateBack.addEventListener('click', showMenu);
   ui.copyButton.addEventListener('click', copyResult);
   ui.helpButton.addEventListener('click', openHelp);
   ui.helpClose.addEventListener('click', closeHelp);
@@ -934,6 +992,7 @@
   window.addEventListener('resize', () => {
     renderer.resize();
     if (!ui.hud.hidden) measureMinimap();
+    syncOrientation();
     app.pausedFrame = false;
   });
 

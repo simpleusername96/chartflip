@@ -382,12 +382,7 @@ svg .off { display: none; }
   paint-order: stroke fill;
 }
 
-/* Touch: a tap anywhere flips, so only the boost key remains, larger and under the right thumb. */
-@media (hover: none) {
-  .key-space { display: none; }
-  .keys { left: auto; right: max(20px, calc(env(safe-area-inset-right) + 14px)); transform: none; }
-  .key-x kbd { width: 86px; height: 70px; padding-bottom: 7px; border-radius: 18px; font-size: 30px; letter-spacing: 0; }
-}
+.touch-face { display: none; }
 
 /* ---------- ready card and hint ---------- */
 .prompt {
@@ -454,6 +449,25 @@ svg .off { display: none; }
 
 @keyframes bob { 50% { transform: translateY(-3px) scale(1.04); } }
 @keyframes nudge { 50% { translate: 0 -6px; } }
+
+/* A portrait phone cannot fit the chart and both thumb controls during a race. */
+.rotate-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 19, 43, 0.94);
+  color: #fff;
+  text-align: center;
+}
+.rotate-card { display: flex; flex-direction: column; align-items: center; gap: 15px; max-width: 320px; }
+.rotate-card svg { width: 80px; height: 80px; fill: none; stroke: #fff; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.rotate-card strong { font-size: 24px; font-weight: 900; }
+.rotate-card p { margin: 0; color: #d7dde8; font-size: 15px; font-weight: 700; }
+.rotate-card button { margin-top: 12px; padding: 9px 20px; border: 2px solid #fff; border-radius: 12px; background: transparent; color: #fff; font-weight: 800; }
+.rotate-card button:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
 
 /* ---------- screens ---------- */
 .screen {
@@ -991,20 +1005,74 @@ svg .off { display: none; }
   .prompt, .hint { bottom: 108px; }
 }
 
-/* Short touch screens: the boost key sits right, so the start card fits between it and the wallet. */
-@media (max-height: 480px) and (orientation: landscape) and (hover: none) {
-  .prompt { bottom: 14px; }
-}
-
 /* Narrow keyboard windows: the keys move right of the wallet. */
 @media (max-width: 640px) and (hover: hover) {
   .keys { left: auto; right: max(16px, calc(env(safe-area-inset-right) + 10px)); transform: none; gap: 12px; }
   .key-space kbd { width: 132px; }
 }
 
+/* Landscape touch play: two thumb buttons and a compact fuel strip above the chart. */
+@media (hover: none) {
+  .wallet {
+    top: max(14px, env(safe-area-inset-top));
+    bottom: auto;
+    left: max(70px, calc(env(safe-area-inset-left) + 66px));
+    display: flex;
+    gap: 6px;
+    min-height: 44px;
+    padding: 4px 8px;
+    border-width: 2.5px;
+    border-radius: 14px;
+  }
+  .wallet-coin { grid-row: auto; width: 28px; height: 28px; border-width: 2px; font-size: 14px; }
+  .wallet-count { min-height: 0; }
+  .wallet-count b { min-width: 1ch; font-size: 20px; }
+  .wallet-burn { display: none; }
+  .wallet-tank { width: 88px; height: 12px; border-width: 2px; }
+  .wallet-note { top: calc(100% + 7px); bottom: auto; font-size: 12px; }
+  .keys {
+    left: 0;
+    right: 0;
+    bottom: max(10px, calc(env(safe-area-inset-bottom) + 5px));
+    width: 100%;
+    padding: 0 max(20px, calc(env(safe-area-inset-right) + 14px)) 0 max(20px, calc(env(safe-area-inset-left) + 14px));
+    justify-content: space-between;
+    transform: none;
+    pointer-events: none;
+  }
+  .key { min-width: 76px; gap: 4px; pointer-events: auto; }
+  .key kbd { display: none; }
+  .touch-face {
+    display: grid;
+    place-items: center;
+    width: 76px;
+    height: 76px;
+    border: 3px solid #fffaf0;
+    border-radius: 50%;
+    background: rgba(27, 31, 70, 0.9);
+    box-shadow: 0 5px 0 var(--line);
+    transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.12s ease;
+  }
+  .touch-face svg { width: 42px; height: 42px; fill: none; stroke: #fff; stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; }
+  .key-x .touch-face svg { stroke: none; }
+  .key-x .flame { fill: #ff8a1c; }
+  .key-x .flame-core { fill: #ffd23f; }
+  .key.down .touch-face { transform: translateY(4px); box-shadow: 0 1px 0 var(--line); background: #343960; }
+  .key.on .touch-face { border-color: #ffd23f; box-shadow: 0 0 12px 2px rgba(255, 138, 28, 0.7); }
+  .key em { font-size: 14px; }
+  .hint { pointer-events: none; }
+}
+@media (hover: none) and (max-width: 720px) and (orientation: landscape) {
+  .wallet { top: max(86px, calc(env(safe-area-inset-top) + 70px)); }
+}
+@media (hover: none) and (max-height: 480px) and (orientation: landscape) {
+  .prompt { bottom: 14px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .logo .flip, .prompt-go, .hint, .medal, .medal::before, .wallet.full .wallet-coin, .wallet.dry, .panel { animation: none; }
   .course, .wallet-note, .icon, .round, .primary, .secondary, .key kbd { transition: none; }
+  .touch-face { transition: none; }
 }
 
 /* Keep upright one- and two-digit course numbers optically centered. */
