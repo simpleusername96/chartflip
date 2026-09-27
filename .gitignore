@@ -3,3 +3,13 @@ __pycache__/
 .DS_Store
 Thumbs.db
 work/
+art/raw/
+art/sheets/
+art/log.jsonl
+art/.tool-lock
+
+# Deprecated art: retain local source/candidate and review artifacts.
+/art/deprecated/2026-09-27-raster-kit/raw/
+/art/deprecated/2026-09-27-raster-kit/sheets/
+/art/deprecated/2026-09-27-raster-kit/local-work/
+/art/deprecated/2026-09-27-raster-kit/log.jsonl
