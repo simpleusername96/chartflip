@@ -49,8 +49,9 @@
     lang: pickLanguage(saved.settings.lang),
     sound: saved.settings.sound !== false
   };
+  let preferredLanguage = settings.lang;
   function saveSettings() {
-    saved.settings = { ...settings };
+    saved.settings = { ...settings, lang: preferredLanguage };
     persist();
   }
   let text = TEXT[settings.lang];
@@ -496,6 +497,7 @@
 
   function toggleLanguage() {
     settings.lang = settings.lang === 'ko' ? 'en' : 'ko';
+    preferredLanguage = settings.lang;
     text = TEXT[settings.lang];
     saveSettings();
     applyText();
@@ -1073,6 +1075,23 @@
   showMenu();
   restoreSession();
   requestAnimationFrame(frame);
+
+  // A portal launch changes this session's language, leaving standalone settings intact.
+  if (window.top !== window) {
+    window.addEventListener('message', event => {
+      if (event.source !== window.top || event.data?.type !== 'playroom:language' ||
+          event.data.gameId !== 'chartflip' || typeof event.data.language !== 'string') return;
+      let origin; try { origin = new URL(event.origin); } catch (_) { return; }
+      if (event.origin !== 'https://playroom.mmonoo.com' &&
+          !(origin.protocol === 'http:' && ['127.0.0.1','localhost'].includes(origin.hostname))) return;
+      settings.lang = Object.keys(TEXT).find(code => code.toLowerCase() === event.data.language.toLowerCase()) || 'en';
+      text = TEXT[settings.lang];
+      applyText();
+      renderer.warm(gameTexts());
+      renderCourses();
+    });
+    window.top.postMessage({type:'playroom:language-ready',gameId:'chartflip'}, '*');
+  }
 
   /** Read-only observation hook for automated checks. */
   CF.app = {
